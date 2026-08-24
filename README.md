@@ -1,2 +1,2 @@
 # Vision-LLM-JSI
-# krr.kyurae.kim@gmail.com
+## krr.kyurae.kim@gmail.com
