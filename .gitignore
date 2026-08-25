@@ -1,0 +1,8 @@
+.venv/
+.venv-*
+__pycahe__/
+*.pyc
+.ipynb_checkpoints/
+.env
+.env.*
+token.ipynb
