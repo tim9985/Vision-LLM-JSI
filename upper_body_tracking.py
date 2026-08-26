@@ -5,15 +5,10 @@ MediaPipe Pose Landmarker로 상반신(머리/귀/어깨/팔/손)을 추적하�
  2) 어깨-팔꿈치-손목 등 팔 관절을 하나하나 조인트 단위로 추적 (좌표, 각도, 이동 궤적)
  3) 손바닥이 경계선을 넘나든 횟수(구간 전환 빈도수)를 좌/우 손 각각 카운트
 
-실행:
-    python upper_body_tracking.py                 # 기본 웹캠 (V4L2 + MJPG)
-    python upper_body_tracking.py --source 2      # 카메라 index 지정
-    python upper_body_tracking.py --source a.mp4  # 동영상 파일
-    python upper_body_tracking.py --gst           # Jetson CSI 카메라 (GStreamer)
-    q 키로 종료
+hand_dectection.py와 동일한 Jetson CSI 카메라(nvarguscamerasrc) 구성으로 바로 실행됩니다.
+    python upper_body_tracking.py   (q 키로 종료)
 """
 
-import argparse
 from collections import deque
 
 import cv2
@@ -185,33 +180,6 @@ class PalmZoneTracker:
         return [count // 2 for count in self.boundary_counts]
 
 
-# ---------------------------------------------------------------- 영상 입력
-
-def open_capture(args):
-    """옵션에 맞는 VideoCapture 생성"""
-    if args.gst:
-        pipeline = (
-            "nvarguscamerasrc sensor-id=0 ! "
-            "video/x-raw(memory:NVMM), width=1280, height=720, framerate=30/1 ! "
-            "nvvidconv ! video/x-raw, format=BGRx ! "
-            "videoconvert ! video/x-raw, format=BGR ! "
-            "queue leaky=downstream max-size-buffers=1 ! "
-            "appsink drop=true max-buffers=1 sync=false"
-        )
-        return cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
-
-    if args.source.isdigit():
-        # usbip로 패스스루된 웹캠은 비압축(YUYV) 포맷 요청 시 대역폭 부족으로 타임아웃이 나기 쉬워
-        # MJPG(압축) 포맷과 해상도를 명시적으로 지정
-        cap = cv2.VideoCapture(int(args.source), cv2.CAP_V4L2)
-        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
-        return cap
-
-    return cv2.VideoCapture(args.source)
-
-
 # ---------------------------------------------------------------- 화면 그리기
 
 def draw_skeleton(frame, points, visible):
@@ -236,7 +204,7 @@ def draw_boundaries(frame, boundaries_px, w):
     """머리/귀/어깨 경계선을 화면에 가로선으로 표시"""
     for name, y in zip(BOUNDARY_NAMES, boundaries_px):
         cv2.line(frame, (0, y), (w, y), (200, 200, 200), 1, cv2.LINE_AA)
-        cv2.putText(frame, name, (w - 150, y - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
+        cv2.putText(frame, name, (w - 170, y - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
 
 
 def draw_trail(frame, trail, color):
@@ -254,7 +222,7 @@ def draw_panel(frame, info_lines):
     h = frame.shape[0]
     overlay = frame.copy()
     panel_bottom = min(24 + 22 * len(info_lines), h - 10)
-    cv2.rectangle(overlay, (10, 10), (480, panel_bottom), (0, 0, 0), -1)
+    cv2.rectangle(overlay, (10, 10), (490, panel_bottom), (0, 0, 0), -1)
     frame = cv2.addWeighted(overlay, 0.45, frame, 0.55, 0)
 
     y = 34
@@ -265,179 +233,174 @@ def draw_panel(frame, info_lines):
     return frame
 
 
+# ---------------------------------------------------------------- 초기화
+
+# 모델 경로를 지정해 상반신(pose) 검출 객체 생성
+base_option = python.BaseOptions(model_asset_path=MODEL_PATH)
+options = vision.PoseLandmarkerOptions(base_options=base_option, num_poses=1)
+pose_detector = vision.PoseLandmarker.create_from_options(options)
+
+pipeline = (
+    "nvarguscamerasrc sensor-id=0 ! "
+    "video/x-raw(memory:NVMM), width=1280, height=720, framerate=30/1 ! "
+    "nvvidconv ! "
+    "video/x-raw, format=BGRx ! "
+    "videoconvert ! "
+    "video/x-raw, format=BGR ! "
+    "queue leaky=downstream max-size-buffers=1 ! "
+    "appsink drop=true max-buffers=1 sync=false"
+)
+
+cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
+
+trackers = {side: PalmZoneTracker(side) for side in ("Left", "Right")}
+joint_trails = {side: {name: deque(maxlen=TRAIL_LENGTH) for name, _ in joints}
+                for side, joints in ARM_JOINTS.items()}
+boundaries = None  # 스무딩된 경계선 y (정규화 좌표, 위→아래 순서)
+
+
 # ---------------------------------------------------------------- 메인 루프
 
-def main():
-    parser = argparse.ArgumentParser(description="상반신 인식 / 손바닥 구간 판별 / 팔 관절 추적")
-    parser.add_argument("--source", default="0", help="카메라 index 또는 동영상 파일 경로 (기본 0)")
-    parser.add_argument("--gst", action="store_true", help="Jetson CSI 카메라(GStreamer) 사용")
-    parser.add_argument("--width", type=int, default=640, help="캡처 가로 해상도")
-    parser.add_argument("--height", type=int, default=480, help="캡처 세로 해상도")
-    parser.add_argument("--flip", type=int, default=1, choices=[-1, 0, 1, 2],
-                        help="화면 반전 (1: 좌우(기본), 0: 상하, -1: 상하좌우, 2: 반전 없음)")
-    parser.add_argument("--model", default=MODEL_PATH, help="Pose Landmarker 모델 경로")
-    args = parser.parse_args()
+while True:
+    ret, frame = cap.read()
 
-    # 모델 경로를 지정해 상반신(pose) 검출 객체 생성
-    base_option = python.BaseOptions(model_asset_path=args.model)
-    options = vision.PoseLandmarkerOptions(base_options=base_option, num_poses=1)
-    pose_detector = vision.PoseLandmarker.create_from_options(options)
+    if not ret:
+        break
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
 
-    cap = open_capture(args)
-    if not cap.isOpened():
-        print("[ERROR] 카메라/영상을 열 수 없습니다:", args.source)
-        pose_detector.close()
-        return
+    # 이미지 좌우 반전 및 RGB로 색공간 변환 (전처리)
+    frame = cv2.flip(frame, 0)
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-    trackers = {side: PalmZoneTracker(side) for side in ("Left", "Right")}
-    joint_trails = {side: {name: deque(maxlen=TRAIL_LENGTH) for name, _ in joints}
-                    for side, joints in ARM_JOINTS.items()}
-    boundaries = None  # 스무딩된 경계선 y (정규화 좌표, 위→아래 순서)
+    h, w = frame.shape[:2]  # 프레임 높이와 너비
 
-    while True:
-        ret, frame = cap.read()
+    # 프레임 내 사람(상반신) 탐지
+    result = pose_detector.detect(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb))
 
-        if not ret:
-            break
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
+    info_lines = []
+    pose = result.pose_landmarks[0] if result.pose_landmarks else None
 
-        # 화면 반전 및 RGB로 색공간 변환 (전처리)
-        if args.flip != 2:
-            frame = cv2.flip(frame, args.flip)
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    if pose is not None:
+        points = [(int(p.x * w), int(p.y * h)) for p in pose]  # 프레임 크기 기준 각 landmark 좌표
+        visible = [is_visible(p) for p in pose]
 
-        h, w = frame.shape[:2]  # 프레임 높이와 너비
+        draw_skeleton(frame, points, visible)
 
-        # 프레임 내 사람(상반신) 탐지
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-        result = pose_detector.detect(mp_image)
+        # ---- 머리 / 귀 / 어깨 기준 경계선 계산
+        ear_y = mean_y(pose, (LEFT_EAR, RIGHT_EAR))
+        shoulder_y = mean_y(pose, (LEFT_SHOULDER, RIGHT_SHOULDER))
 
-        info_lines = []
-        pose = result.pose_landmarks[0] if result.pose_landmarks else None
+        if ear_y is None and visible[NOSE]:
+            ear_y = pose[NOSE].y  # 귀가 안 보이면 코 높이로 대체
 
-        if pose is not None:
-            points = [(int(p.x * w), int(p.y * h)) for p in pose]
-            visible = [is_visible(p) for p in pose]
+        if ear_y is not None and shoulder_y is not None:
+            # 어깨 너비를 기준 길이로 삼아 머리 꼭대기 위치를 추정
+            if visible[LEFT_SHOULDER] and visible[RIGHT_SHOULDER]:
+                shoulder_width = abs(pose[LEFT_SHOULDER].x - pose[RIGHT_SHOULDER].x)
+            else:
+                shoulder_width = abs(shoulder_y - ear_y) * 2
+            head_top_y = ear_y - HEAD_TOP_RATIO * shoulder_width
 
-            draw_skeleton(frame, points, visible)
+            current = np.sort(np.array([head_top_y, ear_y, shoulder_y]))  # 위→아래 순서 보장
+            boundaries = smooth(boundaries, current)
+    else:
+        info_lines.append(("No person detected", (0, 0, 255)))
 
-            # ---- 머리 / 귀 / 어깨 기준 경계선 계산
-            ear_y = mean_y(pose, (LEFT_EAR, RIGHT_EAR))
-            shoulder_y = mean_y(pose, (LEFT_SHOULDER, RIGHT_SHOULDER))
+    if boundaries is not None:
+        draw_boundaries(frame, [int(y * h) for y in boundaries], w)
 
-            if ear_y is None and visible[NOSE]:
-                ear_y = pose[NOSE].y  # 귀가 안 보이면 코 높이로 대체
+    # ---- 손바닥이 어느 경계 사이에 있는지 판별 + 전환 횟수 카운트
+    if pose is not None and boundaries is not None:
+        for side, tracker in trackers.items():
+            center = palm_center(pose, side)
 
-            if ear_y is not None and shoulder_y is not None:
-                # 어깨 너비를 기준 길이로 삼아 머리 꼭대기 위치를 추정
-                if visible[LEFT_SHOULDER] and visible[RIGHT_SHOULDER]:
-                    shoulder_width = abs(pose[LEFT_SHOULDER].x - pose[RIGHT_SHOULDER].x)
-                else:
-                    shoulder_width = abs(shoulder_y - ear_y) * 2
-                head_top_y = ear_y - HEAD_TOP_RATIO * shoulder_width
+            if center is None:
+                info_lines.append((f"{side} palm : not visible", (128, 128, 128)))
+                continue
 
-                current = np.sort(np.array([head_top_y, ear_y, shoulder_y]))  # 위→아래 순서 보장
-                boundaries = smooth(boundaries, current)
-        else:
-            info_lines.append(("No person detected", (0, 0, 255)))
+            px, py = center
+            point = (int(px * w), int(py * h))
+            tracker.trail.append(point)
 
-        if boundaries is not None:
-            draw_boundaries(frame, [int(y * h) for y in boundaries], w)
+            # 현재 구간 판별 (경계 근처에서는 hysteresis로 이전 구간 유지)
+            zone = zone_index(py, boundaries)
+            if tracker.zone is not None and zone != tracker.zone:
+                edge = min(zone, tracker.zone)
+                if abs(py - boundaries[edge]) < BOUNDARY_MARGIN:
+                    zone = tracker.zone
 
-        # ---- 손바닥이 어느 경계 사이에 있는지 판별 + 전환 횟수 카운트
-        if pose is not None and boundaries is not None:
-            for side, tracker in trackers.items():
-                center = palm_center(pose, side)
+            event = tracker.update(zone)
+            if event is not None:
+                previous, now, crossed = event
+                counts = ", ".join(f"{n}:{c}" for n, c in zip(BOUNDARY_NAMES, tracker.boundary_counts))
+                print(f"[{side}] {ZONE_NAMES[previous]} -> {ZONE_NAMES[now]}"
+                      f" | crossed: {', '.join(crossed)}"
+                      f" | transitions: {tracker.transitions} | counts: {counts}")
 
-                if center is None:
-                    info_lines.append((f"{side} palm : not visible", (128, 128, 128)))
+            shown = tracker.zone if tracker.zone is not None else zone
+            color = ZONE_COLORS[shown]
+
+            draw_trail(frame, tracker.trail, color)
+            cv2.circle(frame, point, 10, color, -1)
+            cv2.circle(frame, point, 12, (255, 255, 255), 2)
+            cv2.putText(frame, f"{side} palm", (point[0] + 14, point[1] - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+            info_lines.append((f"{side} palm : {ZONE_NAMES[shown]}", color))
+            info_lines.append(("  cross " + " ".join(
+                f"{n}:{c}" for n, c in zip(BOUNDARY_NAMES, tracker.boundary_counts)
+            ) + f"  (total {tracker.transitions})", (255, 255, 255)))
+            info_lines.append(("  trip  " + " ".join(
+                f"{n}:{r}" for n, r in zip(BOUNDARY_NAMES, tracker.round_trips())
+            ), (180, 180, 180)))
+
+        # ---- 팔 관절 하나하나 조인트 단위 추적 (궤적 + 각도)
+        for side, joints in ARM_JOINTS.items():
+            for name, idx in joints:
+                if not is_visible(pose[idx]):
                     continue
+                p = (int(pose[idx].x * w), int(pose[idx].y * h))
+                joint_trails[side][name].append(p)
+                draw_trail(frame, joint_trails[side][name], (255, 128, 0))
+                cv2.putText(frame, f"{side[0]}-{name}", (p[0] + 10, p[1] + 18),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 200, 0), 1)
 
-                px, py = center
-                point = (int(px * w), int(py * h))
-                tracker.trail.append(point)
+            shoulder, elbow, wrist = (idx for _, idx in joints)
+            hip = LEFT_HIP if side == "Left" else RIGHT_HIP
 
-                # 현재 구간 판별 (경계 근처에서는 hysteresis로 이전 구간 유지)
-                zone = zone_index(py, boundaries)
-                if tracker.zone is not None and zone != tracker.zone:
-                    edge = min(zone, tracker.zone)
-                    if abs(py - boundaries[edge]) < BOUNDARY_MARGIN:
-                        zone = tracker.zone
+            elbow_angle = shoulder_angle = None
 
-                event = tracker.update(zone)
-                if event is not None:
-                    previous, now, crossed = event
-                    counts = ", ".join(f"{n}:{c}" for n, c in zip(BOUNDARY_NAMES, tracker.boundary_counts))
-                    print(f"[{side}] {ZONE_NAMES[previous]} -> {ZONE_NAMES[now]}"
-                          f" | crossed: {', '.join(crossed)}"
-                          f" | transitions: {tracker.transitions} | counts: {counts}")
+            if all(is_visible(pose[i]) for i in (shoulder, elbow, wrist)):
+                elbow_angle = calculate_angle(pose[shoulder], pose[elbow], pose[wrist])
+                cv2.putText(frame, f"{elbow_angle:.0f}",
+                            (int(pose[elbow].x * w) + 10, int(pose[elbow].y * h) - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
-                shown = tracker.zone if tracker.zone is not None else zone
-                color = ZONE_COLORS[shown]
+            if all(is_visible(pose[i]) for i in (hip, shoulder, elbow)):
+                shoulder_angle = calculate_angle(pose[hip], pose[shoulder], pose[elbow])
+                cv2.putText(frame, f"{shoulder_angle:.0f}",
+                            (int(pose[shoulder].x * w) + 10, int(pose[shoulder].y * h) - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
-                draw_trail(frame, tracker.trail, color)
-                cv2.circle(frame, point, 10, color, -1)
-                cv2.circle(frame, point, 12, (255, 255, 255), 2)
-                cv2.putText(frame, f"{side} palm", (point[0] + 14, point[1] - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            elbow_text = f"{elbow_angle:.0f}" if elbow_angle is not None else "--"
+            shoulder_text = f"{shoulder_angle:.0f}" if shoulder_angle is not None else "--"
+            info_lines.append((f"{side} arm  : shoulder {shoulder_text} / elbow {elbow_text}",
+                               (255, 200, 0)))
 
-                info_lines.append((f"{side} palm : {ZONE_NAMES[shown]}", color))
-                info_lines.append(("  cross " + " ".join(
-                    f"{n}:{c}" for n, c in zip(BOUNDARY_NAMES, tracker.boundary_counts)
-                ) + f"  (total {tracker.transitions})", (255, 255, 255)))
-                info_lines.append(("  trip  " + " ".join(
-                    f"{n}:{r}" for n, r in zip(BOUNDARY_NAMES, tracker.round_trips())
-                ), (180, 180, 180)))
-
-            # ---- 팔 관절 하나하나 조인트 단위 추적 (궤적 + 각도)
-            for side, joints in ARM_JOINTS.items():
-                for name, idx in joints:
-                    if not is_visible(pose[idx]):
-                        continue
-                    p = (int(pose[idx].x * w), int(pose[idx].y * h))
-                    joint_trails[side][name].append(p)
-                    draw_trail(frame, joint_trails[side][name], (255, 128, 0))
-                    cv2.putText(frame, f"{side[0]}-{name}", (p[0] + 10, p[1] + 18),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 200, 0), 1)
-
-                shoulder, elbow, wrist = (idx for _, idx in joints)
-                hip = LEFT_HIP if side == "Left" else RIGHT_HIP
-
-                elbow_angle = shoulder_angle = None
-
-                if all(is_visible(pose[i]) for i in (shoulder, elbow, wrist)):
-                    elbow_angle = calculate_angle(pose[shoulder], pose[elbow], pose[wrist])
-                    cv2.putText(frame, f"{elbow_angle:.0f}",
-                                (int(pose[elbow].x * w) + 10, int(pose[elbow].y * h) - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
-
-                if all(is_visible(pose[i]) for i in (hip, shoulder, elbow)):
-                    shoulder_angle = calculate_angle(pose[hip], pose[shoulder], pose[elbow])
-                    cv2.putText(frame, f"{shoulder_angle:.0f}",
-                                (int(pose[shoulder].x * w) + 10, int(pose[shoulder].y * h) - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
-
-                elbow_text = f"{elbow_angle:.0f}" if elbow_angle is not None else "--"
-                shoulder_text = f"{shoulder_angle:.0f}" if shoulder_angle is not None else "--"
-                info_lines.append((f"{side} arm  : shoulder {shoulder_text} / elbow {elbow_text}",
-                                   (255, 200, 0)))
-
-        frame = draw_panel(frame, info_lines)
-        cv2.imshow("Upper Body / Palm Zone Tracking", frame)
-
-    # ---- 종료 시 최종 통계 출력
-    print("\n===== 최종 결과 =====")
-    for side, tracker in trackers.items():
-        last = ZONE_NAMES[tracker.zone] if tracker.zone is not None else "-"
-        print(f"[{side}] 마지막 구간: {last} / 총 구간 전환 횟수: {tracker.transitions}")
-        for name, count, trip in zip(BOUNDARY_NAMES, tracker.boundary_counts, tracker.round_trips()):
-            print(f"    {name:<10} 통과 {count}회 (왕복 {trip}회)")
-
-    pose_detector.close()
-    cap.release()
-    cv2.destroyAllWindows()
+    frame = draw_panel(frame, info_lines)
+    cv2.imshow("MediaPipe Pose Detection", frame)
 
 
-if __name__ == "__main__":
-    main()
+# ---------------------------------------------------------------- 종료 처리
+
+print("\n===== 최종 결과 =====")
+for side, tracker in trackers.items():
+    last = ZONE_NAMES[tracker.zone] if tracker.zone is not None else "-"
+    print(f"[{side}] 마지막 구간: {last} / 총 구간 전환 횟수: {tracker.transitions}")
+    for name, count, trip in zip(BOUNDARY_NAMES, tracker.boundary_counts, tracker.round_trips()):
+        print(f"    {name:<10} 통과 {count}회 (왕복 {trip}회)")
+
+pose_detector.close()
+cap.release()
+cv2.destroyAllWindows()
