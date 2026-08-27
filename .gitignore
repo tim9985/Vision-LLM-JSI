@@ -7,3 +7,4 @@ __pycahe__/
 .env.*
 token.ipynb
 token.ipynb
+models/MNIST
