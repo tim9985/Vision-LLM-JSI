@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Computer Vision 실습 노트</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;display=swap">
+
+<style>
+  :root{
+    --bg:#F1F3F1;
+    --surface:#FFFFFF;
+    --surface-2:#E7EBE8;
+    --surface-3:#DCE2DE;
+    --ink:#14181A;
+    --ink-soft:#55605C;
+    --ink-faint:#8A948F;
+    --border:#D5DBD7;
+    --accent:#C8631F;
+    --accent-soft:#F1E0CE;
+    --accent-ink:#FFFFFF;
+    --accent2:#227373;
+    --accent2-soft:#DCEAEA;
+    --red:#B23A32;
+    --code-kw:#8B4A9C;
+    --code-str:#2E7D46;
+    --code-com:#8A948F;
+    --code-fn:#1D6FB8;
+    --code-num:#B2622E;
+    --shadow: 0 1px 2px rgba(20,24,26,.06), 0 8px 24px -12px rgba(20,24,26,.18);
+    --radius: 10px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#14181A;
+      --surface:#1B2023;
+      --surface-2:#20272A;
+      --surface-3:#283130;
+      --ink:#E8EDE9;
+      --ink-soft:#9AA8A2;
+      --ink-faint:#657069;
+      --border:#313B38;
+      --accent:#E39150;
+      --accent-soft:#3A2A1B;
+      --accent-ink:#1A1006;
+      --accent2:#5FC2C0;
+      --accent2-soft:#17302F;
+      --red:#E07B72;
+      --code-kw:#C892D8;
+      --code-str:#7FCB93;
+      --code-com:#7C8983;
+      --code-fn:#7EB6E8;
+      --code-num:#E3A374;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14181A;
+    --surface:#1B2023;
+    --surface-2:#20272A;
+    --surface-3:#283130;
+    --ink:#E8EDE9;
+    --ink-soft:#9AA8A2;
+    --ink-faint:#657069;
+    --border:#313B38;
+    --accent:#E39150;
+    --accent-soft:#3A2A1B;
+    --accent-ink:#1A1006;
+    --accent2:#5FC2C0;
+    --accent2-soft:#17302F;
+    --red:#E07B72;
+    --code-kw:#C892D8;
+    --code-str:#7FCB93;
+    --code-com:#7C8983;
+    --code-fn:#7EB6E8;
+    --code-num:#E3A374;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"IBM Plex Sans","IBM Plex Sans KR",-apple-system,sans-serif;
+    font-size:16px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  a{ color:var(--accent2); text-decoration-thickness: 1.5px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, summary:focus-visible{
+    outline: 2.5px solid var(--accent2); outline-offset: 2px; border-radius:4px;
+  }
+
+  h1,h2,h3,h4{
+    font-family:"IBM Plex Sans Condensed","IBM Plex Sans KR",sans-serif;
+    font-weight:700;
+    text-wrap:balance;
+    margin:0;
+    letter-spacing:.1px;
+  }
+
+  .layout{
+    display:grid;
+    grid-template-columns: 250px minmax(0,1fr);
+    max-width:1180px;
+    margin:0 auto;
+    align-items:start;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+    padding:28px 14px 28px 20px;
+    border-right:1px solid var(--border);
+    scrollbar-width:thin;
+  }
+  .brand{
+    display:block;
+    font-family:"IBM Plex Sans Condensed",sans-serif;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-bottom:4px;
+  }
+  .brand strong{
+    display:block;
+    font-size:19px;
+    letter-spacing:0;
+    text-transform:none;
+    color:var(--ink);
+    margin-top:6px;
+    line-height:1.25;
+  }
+  nav.toc{ margin-top:26px; }
+  nav.toc .group-label{
+    font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--ink-faint); font-weight:600; padding:0 10px; margin:18px 0 6px;
+  }
+  nav.toc .group-label:first-child{ margin-top:0; }
+  nav.toc ol{ list-style:none; margin:0; padding:0; counter-reset:none; }
+  nav.toc a{
+    display:flex; align-items:baseline; gap:10px;
+    padding:6px 10px; border-radius:7px;
+    color:var(--ink-soft); text-decoration:none; font-size:14.5px;
+    transition:background .12s ease, color .12s ease;
+  }
+  nav.toc a:hover{ background:var(--surface-2); color:var(--ink); }
+  nav.toc a .letter{
+    font-family:"IBM Plex Mono",monospace; font-size:12.5px; font-weight:600;
+    color:var(--accent); width:1.1em; flex:none;
+  }
+  nav.toc a.active{ background:var(--accent-soft); color:var(--ink); }
+  nav.toc a.active .letter{ color:var(--accent); }
+
+  /* ---------- Main ---------- */
+  main{ padding:56px 44px 120px; min-width:0; }
+
+  header.hero{ max-width:660px; margin-bottom:54px; }
+  .eyebrow{
+    font-family:"IBM Plex Sans Condensed",sans-serif;
+    font-size:12.5px; letter-spacing:.11em; text-transform:uppercase;
+    color:var(--accent); font-weight:600; margin-bottom:14px; display:block;
+  }
+  header.hero h1{ font-size:38px; line-height:1.15; margin-bottom:16px; }
+  header.hero .sub{ color:var(--ink-soft); font-size:16.5px; max-width:58ch; }
+
+  .stage-row{
+    display:flex; flex-wrap:wrap; gap:10px; margin-top:26px;
+  }
+  .stage-chip{
+    display:flex; align-items:center; gap:8px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:999px; padding:7px 14px 7px 10px; font-size:13.5px; color:var(--ink-soft);
+  }
+  .stage-chip b{ color:var(--ink); font-weight:600; }
+  .stage-chip .n{
+    width:20px; height:20px; border-radius:50%; background:var(--accent2-soft); color:var(--accent2);
+    display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:700;
+    font-family:"IBM Plex Mono",monospace;
+  }
+
+  section.chapter{
+    padding-top:52px; margin-top:6px; border-top:1px solid var(--border);
+    scroll-margin-top: 20px;
+  }
+  section.chapter:first-of-type{ border-top:none; padding-top:0; }
+
+  .chapter-head{ display:flex; gap:18px; align-items:flex-start; margin-bottom:22px; }
+  .chapter-head .big-letter{
+    font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700;
+    font-size:44px; line-height:1; color:var(--accent2); flex:none;
+    min-width:.9em;
+  }
+  .chapter-head h2{ font-size:25px; padding-top:5px; }
+  .chapter-head .stage-tag{
+    display:inline-block; margin-top:8px;
+    font-size:11.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:600;
+    color:var(--ink-faint);
+  }
+
+  .prose{ max-width:70ch; }
+  .prose p{ margin:0 0 14px; color:var(--ink); }
+  .prose p.soft{ color:var(--ink-soft); }
+
+  .callout{
+    background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent2);
+    border-radius:8px; padding:16px 20px; margin:18px 0 22px; max-width:70ch;
+    box-shadow:var(--shadow);
+  }
+  .callout .label{
+    font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
+    color:var(--accent2); margin-bottom:8px; display:block;
+  }
+  .callout ul{ margin:0; padding-left:20px; }
+  .callout li{ margin-bottom:6px; color:var(--ink); }
+  .callout li:last-child{ margin-bottom:0; }
+  .callout li .k{ color:var(--ink-soft); }
+
+  .takeaway{
+    display:flex; gap:12px; align-items:flex-start;
+    background:var(--accent-soft); border-radius:8px; padding:14px 18px;
+    margin-top:22px; max-width:70ch;
+  }
+  .takeaway .mark{
+    font-family:"IBM Plex Mono",monospace; font-weight:700; color:var(--accent); font-size:13px;
+    flex:none; margin-top:2px;
+  }
+  .takeaway p{ margin:0; color:var(--ink); font-size:14.5px; }
+
+  /* formula */
+  .formula{
+    font-family:"IBM Plex Mono",monospace; background:var(--surface-2);
+    border:1px solid var(--border); border-radius:8px;
+    padding:16px 22px; margin:16px 0; max-width:70ch;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    font-size:15.5px; overflow-x:auto;
+  }
+  .formula .frac{
+    display:inline-flex; flex-direction:column; align-items:center; vertical-align:middle;
+    margin:0 3px; line-height:1.3;
+  }
+  .formula .frac .num{ border-bottom:1.4px solid currentColor; padding:0 4px 1px; }
+  .formula .frac .den{ padding:1px 4px 0; }
+  .formula sup{ font-size:.7em; }
+
+  /* code card */
+  .code-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    margin:16px 0 22px; overflow:hidden; box-shadow:var(--shadow);
+    max-width: 100%;
+  }
+  .code-card .bar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:9px 16px; background:var(--surface-2); border-bottom:1px solid var(--border);
+    font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-soft);
+  }
+  .code-card .bar .fn{ color:var(--ink); font-weight:600; }
+  .code-card pre{
+    margin:0; padding:16px 18px; overflow-x:auto;
+    font-family:"IBM Plex Mono",monospace; font-size:13.3px; line-height:1.62;
+  }
+  .code-card code{ color:var(--ink); }
+  .tok-kw{ color:var(--code-kw); }
+  .tok-str{ color:var(--code-str); }
+  .tok-com{ color:var(--code-com); font-style:italic; }
+  .tok-fn{ color:var(--code-fn); }
+  .tok-num{ color:var(--code-num); }
+
+  .kv-table{ width:100%; border-collapse:collapse; margin:14px 0 20px; max-width:70ch; font-size:14px; }
+  .kv-table th, .kv-table td{
+    text-align:left; padding:8px 12px; border-bottom:1px solid var(--border);
+  }
+  .kv-table th{ color:var(--ink-faint); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.05em; }
+  .kv-table td code{ font-family:"IBM Plex Mono",monospace; font-size:12.8px; background:var(--surface-2); padding:1px 5px; border-radius:4px; }
+  .kv-table td.num{ font-variant-numeric: tabular-nums; }
+
+  .compare{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:16px 0 22px; max-width:70ch; }
+  .compare .box{ background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
+  .compare .box h4{ font-size:14px; margin-bottom:8px; color:var(--ink); }
+  .compare .box.pos{ border-left:3px solid var(--accent2); }
+  .compare .box.neg{ border-left:3px solid var(--red); }
+  .compare ul{ margin:0; padding-left:18px; font-size:13.6px; color:var(--ink-soft); }
+  .compare li{ margin-bottom:4px; }
+
+  /* kernel grid visual */
+  .kernel-row{ display:flex; gap:28px; flex-wrap:wrap; margin:18px 0 22px; }
+  .kernel{ text-align:center; }
+  .kernel .cap{ font-size:12.5px; color:var(--ink-soft); margin-bottom:8px; }
+  .kernel .grid3{
+    display:grid; grid-template-columns:repeat(3,34px); grid-template-rows:repeat(3,34px);
+    gap:3px; background:var(--border); border:1px solid var(--border); border-radius:6px; overflow:hidden;
+  }
+  .kernel .grid3 span{
+    background:var(--surface); display:flex; align-items:center; justify-content:center;
+    font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--ink);
+  }
+  .kernel .grid3 span.center{ background:var(--accent-soft); color:var(--accent); font-weight:700; }
+  .kernel .grid3 span.neg{ color:var(--red); }
+
+  /* HSV wheel */
+  .hsv-wrap{ display:flex; gap:32px; align-items:center; flex-wrap:wrap; margin:18px 0 24px; }
+  .hsv-wrap svg{ flex:none; }
+  .hsv-legend{ font-size:13.6px; color:var(--ink-soft); max-width:34ch; }
+  .hsv-legend div{ margin-bottom:6px; }
+  .hsv-legend b{ color:var(--ink); }
+
+  .pipeline{
+    display:flex; align-items:center; flex-wrap:wrap; gap:0; margin:18px 0 24px; max-width:70ch;
+  }
+  .pipeline .step{
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:9px 14px; font-size:13px; color:var(--ink); white-space:nowrap;
+  }
+  .pipeline .arrow{ color:var(--ink-faint); padding:0 8px; font-size:15px; }
+
+  footer.page-end{
+    max-width:70ch; margin-top:64px; padding-top:26px; border-top:1px solid var(--border);
+    color:var(--ink-faint); font-size:13px;
+  }
+
+  code.inline{
+    font-family:"IBM Plex Mono",monospace; background:var(--surface-2);
+    padding:1.5px 6px; border-radius:5px; font-size:.88em; color:var(--ink);
+  }
+
+  .mobile-toc-toggle{ display:none; }
+
+  @media (max-width: 900px){
+    .layout{ grid-template-columns: 1fr; }
+    .sidebar{
+      position:static; height:auto; border-right:none; border-bottom:1px solid var(--border);
+      padding:16px 20px;
+    }
+    nav.toc{ display:none; margin-top:14px; }
+    nav.toc.open{ display:block; }
+    .mobile-toc-toggle{
+      display:flex; align-items:center; gap:8px; width:100%;
+      background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
+      padding:10px 14px; color:var(--ink); font-size:13.5px; font-weight:600;
+      font-family:"IBM Plex Sans Condensed",sans-serif; letter-spacing:.03em;
+    }
+    main{ padding:38px 20px 90px; }
+    .compare{ grid-template-columns:1fr; }
+    header.hero h1{ font-size:30px; }
+  }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; scroll-behavior:auto !important; } }
+
+  html{ scroll-behavior:smooth; }
+
+  /* ---------- Print (PDF로 저장 시) ---------- */
+  @media print{
+    :root{
+      --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F3F4F2; --surface-3:#EAEDEA;
+      --ink:#14181A; --ink-soft:#4A5450; --ink-faint:#78827D; --border:#CBD2CD;
+      --shadow:none;
+    }
+    * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body{ font-size:12.5px; }
+    .layout{ display:block; max-width:none; }
+    .sidebar{ display:none; }
+    main{ padding:0 6mm; }
+    header.hero{ margin-bottom:30px; }
+    .stage-chip{ break-inside:avoid; }
+    section.chapter{
+      border-top:1px solid var(--border);
+      break-before:page; padding-top:24px;
+    }
+    section.chapter:first-of-type{ break-before:avoid; }
+    .code-card, .callout, .compare, .kv-table, .takeaway, .kernel-row, .hsv-wrap, .formula, .pipeline{
+      break-inside:avoid;
+    }
+    a{ color:var(--ink); text-decoration:none; }
+    .code-card pre{ white-space:pre-wrap; word-break:break-word; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <span class="brand">Study Notes<strong>Computer&nbsp;Vision<br>기초 실습 정리</strong></span>
+
+    <button class="mobile-toc-toggle" id="tocToggle" type="button">목차 펼치기 ▾</button>
+
+    <nav class="toc" id="tocNav">
+      <div class="group-label">01 · 이미지 전처리</div>
+      <ol>
+        <li><a href="#sec-a"><span class="letter">A</span>이미지 조정</a></li>
+        <li><a href="#sec-b"><span class="letter">B</span>색공간 변환</a></li>
+        <li><a href="#sec-c"><span class="letter">C</span>필터링</a></li>
+        <li><a href="#sec-d"><span class="letter">D</span>Edge Detection</a></li>
+      </ol>
+      <div class="group-label">02 · 특징 추출</div>
+      <ol>
+        <li><a href="#sec-e"><span class="letter">E</span>Color Segmentation</a></li>
+        <li><a href="#sec-f"><span class="letter">F</span>Morphological Op.</a></li>
+        <li><a href="#sec-g"><span class="letter">G</span>Image Enhancement</a></li>
+        <li><a href="#sec-h"><span class="letter">H</span>Contour Detection</a></li>
+        <li><a href="#sec-i"><span class="letter">I</span>Interest Point</a></li>
+      </ol>
+      <div class="group-label">03 · 실시간 · 객체 추적</div>
+      <ol>
+        <li><a href="#sec-j"><span class="letter">J</span>실시간 카메라 피드</a></li>
+        <li><a href="#sec-k"><span class="letter">K</span>실시간 객체 검출</a></li>
+        <li><a href="#sec-l"><span class="letter">L</span>실시간 객체 추적</a></li>
+        <li><a href="#sec-m"><span class="letter">M</span>MediaPipe 신체 인식</a></li>
+      </ol>
+    </nav>
+  </aside>
+
+  <main>
+    <header class="hero">
+      <span class="eyebrow">[ANSWER]_02_Computer-Vision.ipynb 기반 정리</span>
+      <h1>OpenCV로 배우는 Computer Vision 기초</h1>
+      <p class="sub">픽셀 배열을 다루는 법부터 색공간 변환, 필터링, 특징 추출, 실시간 객체 추적까지 —
+      Jetson 기반 Physical AI 비전 시스템을 만들기 위한 전체 파이프라인을 순서대로 정리했습니다.</p>
+      <div class="stage-row">
+        <div class="stage-chip"><span class="n">1</span> <b>이미지 전처리</b>&nbsp;조정 · 색공간 · 필터 · Edge</div>
+        <div class="stage-chip"><span class="n">2</span> <b>특징 추출</b>&nbsp;Segmentation · Contour · Corner</div>
+        <div class="stage-chip"><span class="n">3</span> <b>객체 추적</b>&nbsp;실시간 검출 · Kalman · MediaPipe</div>
+      </div>
+    </header>
+
+    <!-- ================= A ================= -->
+    <section class="chapter" id="sec-a">
+      <div class="chapter-head">
+        <span class="big-letter">A</span>
+        <div><h2>이미지 조정</h2><span class="stage-tag">이미지는 결국 NumPy 배열이다</span></div>
+      </div>
+      <div class="prose">
+        <p>이미지는 <code class="inline">H × W × C</code> 형태의 NumPy 배열이다. <code class="inline">image.shape</code>로 세로(행) · 가로(열) · 채널 수를 확인하고, <code class="inline">image[row, col]</code>로 픽셀 하나를 인덱싱할 수 있다. 원점(origin)은 <b>좌측 상단</b>이며 row가 증가하면 아래로, column이 증가하면 오른쪽으로 이동한다.</p>
+        <p class="soft">픽셀 값은 기본적으로 <code class="inline">uint8</code> 타입에 <code class="inline">[0, 255]</code> 범위로 저장된다. 실수 연산(색공간 변환, 필터링 등)을 하려면 <code class="inline">float32</code>로 바꾸고 255로 나눠 <code class="inline">[0, 1]</code> 범위로 정규화해야 Matplotlib이 올바르게 렌더링한다.</p>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">image_basics.py</span><span>NumPy indexing / slicing / dtype 변환</span></div>
+        <pre><code><span class="tok-kw">import</span> cv2
+<span class="tok-kw">import</span> numpy <span class="tok-kw">as</span> np
+
+image = skimage.data.astronaut()
+image.shape                      <span class="tok-com"># (512, 512, 3) → H x W x C</span>
+image[<span class="tok-num">0</span>, <span class="tok-num">0</span>]                     <span class="tok-com"># 픽셀 하나 = [R, G, B], dtype uint8</span>
+
+<span class="tok-com"># NumPy slicing = crop</span>
+cropped = image[<span class="tok-num">0</span>:<span class="tok-num">100</span>, <span class="tok-num">0</span>:<span class="tok-num">50</span>]
+
+<span class="tok-com"># OpenCV 회전 / 반전</span>
+cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+cv2.flip(image, <span class="tok-num">1</span>)          <span class="tok-com"># 1: 좌우, 0: 상하, -1: 상하좌우</span>
+
+<span class="tok-com"># uint8 [0,255] → float32 [0,1] 정규화</span>
+image_f = image.astype(np.float32) / <span class="tok-num">255.</span></code></pre>
+      </div>
+
+      <div class="takeaway">
+        <span class="mark">POINT</span>
+        <p><code class="inline">cv2.flip</code>의 flipCode: <b>1</b>=좌우반전, <b>0</b>=상하반전, <b>-1</b>=상하좌우 모두. 색공간/필터 연산 전에는 항상 float32 정규화 여부를 먼저 확인한다.</p>
+      </div>
+    </section>
+
+    <!-- ================= B ================= -->
+    <section class="chapter" id="sec-b">
+      <div class="chapter-head">
+        <span class="big-letter">B</span>
+        <div><h2>색공간 변환</h2><span class="stage-tag">RGB · BGR · Grayscale · HSV</span></div>
+      </div>
+      <div class="prose">
+        <p><b>Matplotlib은 RGB, OpenCV는 BGR</b> 순서를 기본으로 사용한다. <code class="inline">cv2.imread()</code>로 읽은 이미지를 Matplotlib으로 그대로 띄우면 파랑/빨강이 뒤바뀌어 보이는 이유다. 반드시 <code class="inline">cv2.cvtColor(img, cv2.COLOR_BGR2RGB)</code>로 변환해야 한다.</p>
+      </div>
+
+      <div class="callout">
+        <span class="label">주의 — RGB2GRAY vs BGR2GRAY</span>
+        <ul>
+          <li><code class="inline">skimage.data.astronaut()</code>는 <b>RGB</b> 순서 → <code class="inline">COLOR_RGB2GRAY</code> 사용</li>
+          <li><code class="inline">cv2.imread()</code>는 <b>BGR</b> 순서 → <code class="inline">COLOR_BGR2GRAY</code> 사용</li>
+          <li>순서를 착각해도 에러는 안 나지만, R/B 채널 가중치가 바뀌어 미묘하게 다른 흑백 이미지가 나온다</li>
+        </ul>
+      </div>
+
+      <div class="formula">Gray = 0.299 × R + 0.587 × G + 0.114 × B</div>
+      <p class="prose soft" style="max-width:70ch;margin-top:-8px;">사람 눈은 초록에 가장 민감하고 파랑에 가장 둔감하기 때문에 단순 평균이 아닌 가중합을 사용한다.</p>
+
+      <h3 style="font-size:16px;margin:26px 0 6px;">HSV 색공간</h3>
+      <div class="hsv-wrap">
+        <svg width="168" height="168" viewBox="0 0 168 168" role="img" aria-label="HSV 색상환 다이어그램">
+          <defs>
+            <mask id="ringmask"><rect width="168" height="168" fill="black"/><circle cx="84" cy="84" r="78" fill="white"/><circle cx="84" cy="84" r="52" fill="black"/></mask>
+          </defs>
+          <g mask="url(#ringmask)">
+            <foreignObject x="0" y="0" width="168" height="168">
+              <div xmlns="http://www.w3.org/1999/xhtml" style="width:168px;height:168px;border-radius:50%;background:conic-gradient(from 0deg,#ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000);"></div>
+            </foreignObject>
+          </g>
+          <circle cx="84" cy="84" r="52" fill="none" stroke="var(--border)" stroke-width="1"/>
+          <circle cx="84" cy="84" r="78" fill="none" stroke="var(--border)" stroke-width="1"/>
+          <line x1="84" y1="84" x2="84" y2="6" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="3 3"/>
+          <text x="90" y="16" font-size="10" fill="var(--ink-soft)" font-family="IBM Plex Mono, monospace">0°/360°</text>
+          <circle cx="84" cy="84" r="3" fill="var(--ink)"/>
+        </svg>
+        <div class="hsv-legend">
+          <div><b>H (Hue, 색상)</b> — 원 둘레 각도. 0~360°(일반) / OpenCV uint8은 0~179</div>
+          <div><b>S (Saturation, 채도)</b> — 중심에서 바깥으로. 0(회색)~1(원색)</div>
+          <div><b>V (Value, 명도)</b> — 밝기. 0(검정)~1(원색 밝기)</div>
+          <div style="margin-top:10px;">색상·채도·명도가 <b>서로 독립적</b>이라, 채널을 나눠 조절하면 색만/채도만/밝기만 바꿀 수 있다.</div>
+        </div>
+      </div>
+
+      <table class="kv-table">
+        <tr><th>채널</th><th>일반 범위</th><th>OpenCV uint8</th><th>OpenCV float32</th></tr>
+        <tr><td>H (색상)</td><td class="num">0° ~ 360°</td><td class="num"><code>0 ~ 179</code></td><td class="num"><code>0.0 ~ 360.0</code></td></tr>
+        <tr><td>S (채도)</td><td class="num">0 ~ 100%</td><td class="num"><code>0 ~ 255</code></td><td class="num"><code>0.0 ~ 1.0</code></td></tr>
+        <tr><td>V (명도)</td><td class="num">0 ~ 100%</td><td class="num"><code>0 ~ 255</code></td><td class="num"><code>0.0 ~ 1.0</code></td></tr>
+      </table>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">hsv_channel_edit.py</span><span>H 회전 / S 감쇠 / V 증폭</span></div>
+        <pre><code>image_hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+h, s, v = cv2.split(image_hsv)
+
+h = (h + <span class="tok-num">45</span>) % <span class="tok-num">360</span>              <span class="tok-com"># 색상 45도 회전 (360 넘으면 순환)</span>
+s = np.clip(s * <span class="tok-num">0.3</span>, <span class="tok-num">0</span>, <span class="tok-num">1</span>)        <span class="tok-com"># 채도 30%로 감쇠 + 범위 clip</span>
+v = np.clip(v * <span class="tok-num">2.5</span>, <span class="tok-num">0</span>, <span class="tok-num">1</span>)        <span class="tok-com"># 명도 2.5배 증폭 + 범위 clip</span>
+
+image_hsv = cv2.merge((h, s, v))
+image_rgb = cv2.cvtColor(image_hsv, cv2.COLOR_HSV2RGB)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">POINT</span><p>float32 HSV에서 채널을 조작한 뒤에는 반드시 <code class="inline">np.clip</code>으로 유효 범위(S,V: 0~1 / H: %360)를 지켜야 색이 깨지지 않는다.</p></div>
+    </section>
+
+    <!-- ================= C ================= -->
+    <section class="chapter" id="sec-c">
+      <div class="chapter-head">
+        <span class="big-letter">C</span>
+        <div><h2>필터링</h2><span class="stage-tag">Kernel Convolution — Smoothing / Sharpening</span></div>
+      </div>
+      <div class="prose">
+        <p>필터링은 <b>Kernel</b>을 이미지 전체에 합성곱(Convolution)하여 노이즈를 없애거나(Smoothing) 디테일을 강조(Sharpening)하는 전처리 과정이다.</p>
+      </div>
+
+      <div class="kernel-row">
+        <div class="kernel">
+          <div class="cap">Sharpen Kernel (합 = 1)</div>
+          <div class="grid3">
+            <span>0</span><span class="neg">-1</span><span>0</span>
+            <span class="neg">-1</span><span class="center">5</span><span class="neg">-1</span>
+            <span>0</span><span class="neg">-1</span><span>0</span>
+          </div>
+        </div>
+        <div class="kernel">
+          <div class="cap">Box Filter (합 = 1, 균등)</div>
+          <div class="grid3">
+            <span>⅑</span><span>⅑</span><span>⅑</span>
+            <span>⅑</span><span class="center">⅑</span><span>⅑</span>
+            <span>⅑</span><span>⅑</span><span>⅑</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="compare">
+        <div class="box pos"><h4>Box Filter — <code class="inline">cv2.blur()</code></h4><ul><li>커널 내 픽셀 단순 평균</li><li>빠르지만 경계가 뭉개짐</li></ul></div>
+        <div class="box pos"><h4>Gaussian Filter — <code class="inline">cv2.GaussianBlur()</code></h4><ul><li>중심에 가까울수록 가중치 ↑</li><li>Box보다 자연스러운 블러</li></ul></div>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">filtering.py</span><span>Blur · Sharpen · Border Type</span></div>
+        <pre><code><span class="tok-com"># Smoothing</span>
+box_blur      = cv2.blur(image, (<span class="tok-num">11</span>,<span class="tok-num">11</span>))
+gaussian_blur = cv2.GaussianBlur(image, (<span class="tok-num">11</span>,<span class="tok-num">11</span>), <span class="tok-num">0</span>)
+
+<span class="tok-com"># Sharpening — OpenCV엔 내장 함수가 없어 커널을 직접 정의</span>
+sharp_kernel = np.array([[<span class="tok-num">0</span>,<span class="tok-num">-1</span>,<span class="tok-num">0</span>],
+                          [<span class="tok-num">-1</span>,<span class="tok-num">5</span>,<span class="tok-num">-1</span>],
+                          [<span class="tok-num">0</span>,<span class="tok-num">-1</span>,<span class="tok-num">0</span>]], dtype=np.float32)
+sharpened = cv2.filter2D(image, cv2.CV_32F, sharp_kernel)
+sharpened = np.clip(sharpened, <span class="tok-num">0</span>, <span class="tok-num">1</span>)
+
+<span class="tok-com"># Border Type — 커널이 테두리를 벗어날 때 처리 방식</span>
+cv2.blur(image, (<span class="tok-num">101</span>,<span class="tok-num">101</span>), borderType=cv2.BORDER_REFLECT_101)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">POINT</span><p><code class="inline">cv2.filter2D(src, ddepth, kernel)</code>에서 <code class="inline">ddepth=-1</code>은 원본과 같은 데이터 타입 유지. Kernel 크기가 클수록 블러 강도는 세지지만 연산 비용도 커진다.</p></div>
+    </section>
+
+    <!-- ================= D ================= -->
+    <section class="chapter" id="sec-d">
+      <div class="chapter-head">
+        <span class="big-letter">D</span>
+        <div><h2>Edge Detection</h2><span class="stage-tag">고주파 성분 = 경계선</span></div>
+      </div>
+      <div class="prose">
+        <p>저주파(하늘·피부처럼 부드러운 영역)는 <b>LPF</b>(Box/Gaussian)로 남기고, 고주파(경계·질감·노이즈)는 <b>HPF</b>로 뽑아낸다. Edge Detection은 대표적인 HPF 응용이다.</p>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">residual_unsharp.py</span><span>Residual Extraction → Unsharp Masking</span></div>
+        <pre><code>gray  = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32) / <span class="tok-num">255.</span>
+blur  = cv2.GaussianBlur(gray, (<span class="tok-num">55</span>,<span class="tok-num">55</span>), <span class="tok-num">0</span>)     <span class="tok-com"># 저주파 성분</span>
+high  = cv2.subtract(gray, blur)          <span class="tok-com"># 원본 - 저주파 = 고주파(윤곽선 스케치)</span>
+sharp = cv2.add(gray, high)               <span class="tok-com"># 원본 + 고주파 = edge 강조(Unsharp Masking)</span></code></pre>
+      </div>
+
+      <h3 style="font-size:16px;margin:28px 0 6px;">Sobel Filter — 미분 기반 Edge 검출</h3>
+      <div class="formula">magnitude = √( dx<sup>2</sup> + dy<sup>2</sup> )</div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">sobel.py</span><span>dx, dy → magnitude</span></div>
+        <pre><code>sobel_x = cv2.Sobel(gray_blur, cv2.CV_64F, <span class="tok-num">1</span>, <span class="tok-num">0</span>, ksize=<span class="tok-num">3</span>)  <span class="tok-com"># 세로 edge (x방향 미분)</span>
+sobel_y = cv2.Sobel(gray_blur, cv2.CV_64F, <span class="tok-num">0</span>, <span class="tok-num">1</span>, ksize=<span class="tok-num">3</span>)  <span class="tok-com"># 가로 edge (y방향 미분)</span>
+
+sobel_mag     = cv2.magnitude(sobel_x, sobel_y)   <span class="tok-com"># √(dx² + dy²)</span>
+sobel_mag_abs = cv2.convertScaleAbs(sobel_mag)    <span class="tok-com"># 절대값 → 0~255 uint8로 변환</span></code></pre>
+      </div>
+
+      <h3 style="font-size:16px;margin:28px 0 6px;">Canny Edge Detection</h3>
+      <div class="callout">
+        <span class="label">4단계 파이프라인</span>
+        <ul>
+          <li><span class="k">1.</span> Gaussian Smoothing — 노이즈 제거</li>
+          <li><span class="k">2.</span> Sobel Filter — edge 후보 검출</li>
+          <li><span class="k">3.</span> Non-maximum Suppression — gradient 방향 기준 local maximum만 유지</li>
+          <li><span class="k">4.</span> Hysteresis Thresholding — 이중 임계값 + 연결성 추적</li>
+        </ul>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">canny.py</span><span>⚠ CV_8U 입력 필수</span></div>
+        <pre><code>gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)   <span class="tok-com"># float32 변환 X — cv2.Canny는 CV_8U만 허용</span>
+edges = cv2.Canny(gray, <span class="tok-num">50</span>, <span class="tok-num">150</span>)             <span class="tok-com"># 하위/상위 임계값</span></code></pre>
+      </div>
+
+      <div class="compare">
+        <div class="box neg"><h4>Sobel Filter</h4><ul><li>+ 매우 빠른 속도</li><li>− 배경 노이즈에 취약</li><li>− edge가 두꺼움</li></ul></div>
+        <div class="box pos"><h4>Canny Edge Detection</h4><ul><li>+ edge가 훨씬 얇고 정확</li><li>+ NMS + Hysteresis로 노이즈 억제</li><li>− 연산량이 더 많음</li></ul></div>
+      </div>
+      <div class="takeaway"><span class="mark">함정</span><p><code class="inline">cv2.Canny</code>에 float32 이미지를 넣으면 <code class="inline">_src.depth() == CV_8U</code> 에러 발생 — Sobel과 달리 정규화하면 안 된다.</p></div>
+    </section>
+
+    <!-- ================= E ================= -->
+    <section class="chapter" id="sec-e">
+      <div class="chapter-head">
+        <span class="big-letter">E</span>
+        <div><h2>Color Segmentation</h2><span class="stage-tag">색상 임계값 → Binary Mask</span></div>
+      </div>
+      <div class="prose">
+        <p>HSV로 변환한 뒤 <code class="inline">cv2.inRange(hsv, lower, upper)</code>로 특정 색상 범위만 흰색(255), 나머지는 검정(0)인 <b>이진 마스크</b>를 만든다.</p>
+      </div>
+      <div class="callout">
+        <span class="label">빨간색은 왜 두 구간이 필요한가</span>
+        <ul><li>HSV의 H는 원형(0°~360°) — 빨강은 각도 0° 근처에 위치</li>
+        <li>OpenCV uint8 기준 <code class="inline">H: 0~10</code>과 <code class="inline">H: 170~180</code> 두 범위를 <code class="inline">cv2.bitwise_or</code>로 합쳐야 빨간색 전체를 포착</li></ul>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">color_segmentation.py</span><span>빨간색 이진 마스크</span></div>
+        <pre><code>hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+
+red_lower1, red_upper1 = np.array([<span class="tok-num">0</span>,<span class="tok-num">100</span>,<span class="tok-num">50</span>]),   np.array([<span class="tok-num">10</span>,<span class="tok-num">255</span>,<span class="tok-num">255</span>])
+red_lower2, red_upper2 = np.array([<span class="tok-num">170</span>,<span class="tok-num">100</span>,<span class="tok-num">50</span>]), np.array([<span class="tok-num">180</span>,<span class="tok-num">255</span>,<span class="tok-num">255</span>])
+
+mask1 = cv2.inRange(hsv, red_lower1, red_upper1)
+mask2 = cv2.inRange(hsv, red_lower2, red_upper2)
+mask  = cv2.bitwise_or(mask1, mask2)
+
+<span class="tok-com"># 마스크 노이즈 제거 — 강하게 하면 정보 유실이 크므로 약하게만 적용</span>
+mask_clean = cv2.inRange(cv2.cvtColor(cv2.GaussianBlur(image,(<span class="tok-num">7</span>,<span class="tok-num">7</span>),<span class="tok-num">0</span>), cv2.COLOR_RGB2HSV), red_lower1, red_upper1)</code></pre>
+      </div>
+    </section>
+
+    <!-- ================= F ================= -->
+    <section class="chapter" id="sec-f">
+      <div class="chapter-head">
+        <span class="big-letter">F</span>
+        <div><h2>Morphological Operation</h2><span class="stage-tag">이진 마스크 노이즈 정리</span></div>
+      </div>
+      <div class="compare">
+        <div class="box pos"><h4>Erosion (침식) — AND</h4><ul><li>커널 내 <b>모든</b> 픽셀이 흰색일 때만 흰색 유지</li><li>흰 영역 축소 → 배경 노이즈 제거</li></ul></div>
+        <div class="box pos"><h4>Dilation (팽창) — OR</h4><ul><li>커널 내 <b>하나라도</b> 흰색이면 흰색</li><li>흰 영역 확장 → 구멍/끊어진 윤곽 연결</li></ul></div>
+      </div>
+      <div class="compare">
+        <div class="box pos"><h4>Opening = Erosion → Dilation</h4><ul><li>작은 노이즈 점 제거</li><li>전체 크기는 거의 유지</li></ul></div>
+        <div class="box pos"><h4>Closing = Dilation → Erosion</h4><ul><li>객체 내부의 작은 구멍 메우기</li><li>끊어진 영역 연결</li></ul></div>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">morphology.py</span><span>실전 패턴: Opening → Closing 반복 적용</span></div>
+        <pre><code>kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (<span class="tok-num">5</span>,<span class="tok-num">5</span>))
+
+eroded  = cv2.erode(mask, kernel, iterations=<span class="tok-num">2</span>)
+dilated = cv2.dilate(mask, kernel, iterations=<span class="tok-num">2</span>)
+
+opened = cv2.morphologyEx(mask, cv2.MORPH_OPEN,  kernel, iterations=<span class="tok-num">2</span>)  <span class="tok-com"># 노이즈 제거</span>
+closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel, iterations=<span class="tok-num">3</span>)  <span class="tok-com"># 끊긴 영역 연결</span></code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">실습 팁</span><p>정답은 없다 — Opening/Closing의 <code class="inline">iterations</code>를 1~3회씩 바꿔가며 결과를 비교하고, 노이즈는 지워지되 원하는 영역의 연속성은 유지되는 조합을 찾는 게 핵심이다.</p></div>
+    </section>
+
+    <!-- ================= G ================= -->
+    <section class="chapter" id="sec-g">
+      <div class="chapter-head">
+        <span class="big-letter">G</span>
+        <div><h2>Image Enhancement</h2><span class="stage-tag">조명 오염 극복 — LAB · CLAHE</span></div>
+      </div>
+      <div class="prose"><p>HSV는 조명이 심하게 오염된 이미지에서 color segmentation이 잘 안 될 때가 있다. 이럴 때 <b>LAB 색공간</b> + <b>CLAHE</b>로 대비를 강화하면 원하는 색상 영역을 더 정확히 뽑을 수 있다.</p></div>
+      <table class="kv-table">
+        <tr><th>채널</th><th>의미</th><th>범위 (OpenCV uint8)</th></tr>
+        <tr><td>L*</td><td>지각 밝기 (Lightness)</td><td class="num"><code>0 ~ 255</code> (0~100 스케일)</td></tr>
+        <tr><td>a*</td><td>초록 ↔ 빨강</td><td class="num"><code>-128 ~ 127</code></td></tr>
+        <tr><td>b*</td><td>파랑 ↔ 노랑</td><td class="num"><code>-128 ~ 127</code></td></tr>
+      </table>
+      <div class="pipeline">
+        <div class="step">Histogram Equalization<br><span style="color:var(--ink-faint);">전체 밝기 재분포</span></div><span class="arrow">→</span>
+        <div class="step">Adaptive HE<br><span style="color:var(--ink-faint);">격자별 개별 평탄화</span></div><span class="arrow">→</span>
+        <div class="step" style="border-color:var(--accent2);">CLAHE<br><span style="color:var(--ink-faint);">대비 상한 제한</span></div>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">clahe_enhancement.py</span><span>LAB L채널에 CLAHE 적용</span></div>
+        <pre><code>lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+l, a, b = cv2.split(lab)
+
+clahe = cv2.createCLAHE(clipLimit=<span class="tok-num">3.0</span>, tileGridSize=(<span class="tok-num">8</span>,<span class="tok-num">8</span>))
+l_enhanced = clahe.apply(l)                        <span class="tok-com"># L(밝기) 채널만 강화</span>
+
+enhanced_lab = cv2.merge((l_enhanced, a, b))
+enhanced_bgr = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2BGR)
+
+<span class="tok-com"># 강화된 이미지로 다시 color segmentation</span>
+mask = cv2.inRange(enhanced_lab, lower_lab, upper_lab)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">POINT</span><p>LAB → HSV로 바로 변환하는 OpenCV 함수는 없다. <code class="inline">LAB → RGB → HSV</code> 두 단계를 거쳐야 한다. CLAHE는 항상 <b>밝기(L) 채널에만</b> 적용해 색상 정보(a,b)를 보존한다.</p></div>
+    </section>
+
+    <!-- ================= H ================= -->
+    <section class="chapter" id="sec-h">
+      <div class="chapter-head">
+        <span class="big-letter">H</span>
+        <div><h2>Contour Detection</h2><span class="stage-tag">외곽선 검출 → 중심점/반지름 산출</span></div>
+      </div>
+      <div class="prose"><p>Binary Mask에서 연결된 영역의 외곽선을 찾는다. 노이즈가 작은 외곽선을 여러 개 만들기 쉬우므로, 검출 전에 Morphological Operation으로 마스크를 정리하고 검출 후에는 <b>면적이 가장 큰 외곽선</b> 하나만 선택하는 패턴을 사용한다.</p></div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">contour_detection.py</span><span>findContours → 최대 면적 선택 → 채우기</span></div>
+        <pre><code>contours, _ = cv2.findContours(
+    mask,                     <span class="tok-com"># 최종 정리된 binary mask</span>
+    cv2.RETR_EXTERNAL,        <span class="tok-com"># 바깥쪽 테두리만 검출</span>
+    cv2.CHAIN_APPROX_SIMPLE   <span class="tok-com"># 직선 구간은 꼭짓점만 저장(메모리 절약)</span>
+)
+
+largest = <span class="tok-fn">max</span>(contours, key=cv2.contourArea)   <span class="tok-com"># 면적 최대 = 노이즈 제외</span>
+
+final_mask = np.zeros_like(mask)
+cv2.drawContours(final_mask, [largest], <span class="tok-num">-1</span>, <span class="tok-num">255</span>, thickness=cv2.FILLED)
+cv2.drawContours(frame, [largest], <span class="tok-num">-1</span>, (<span class="tok-num">0</span>,<span class="tok-num">255</span>,<span class="tok-num">0</span>), <span class="tok-num">2</span>)   <span class="tok-com"># 외곽선 그리기</span></code></pre>
+      </div>
+
+      <div class="compare">
+        <div class="box pos">
+          <h4>최소 외접원 — <code class="inline">minEnclosingCircle</code></h4>
+          <ul><li>외곽선의 모든 점을 포함하는 가장 작은 원</li><li><code class="inline">(x,y), radius = cv2.minEnclosingCircle(contour)</code></li></ul>
+        </div>
+        <div class="box pos">
+          <h4>무게중심 — <code class="inline">moments</code></h4>
+          <ul><li>픽셀 분포 기반 기하학적 중심</li><li>반지름 정보는 없음 → 외접원과 함께 사용</li></ul>
+        </div>
+      </div>
+      <div class="formula"><span class="frac"><span class="num">M<sub>10</sub></span><span class="den">M<sub>00</sub></span></span> = C<sub>x</sub> &nbsp;&nbsp; <span class="frac"><span class="num">M<sub>01</sub></span><span class="den">M<sub>00</sub></span></span> = C<sub>y</sub></div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">centroid_and_circle.py</span></div>
+        <pre><code>M = cv2.moments(largest)
+cX, cY = <span class="tok-fn">int</span>(M[<span class="tok-str">"m10"</span>]/M[<span class="tok-str">"m00"</span>]), <span class="tok-fn">int</span>(M[<span class="tok-str">"m01"</span>]/M[<span class="tok-str">"m00"</span>])   <span class="tok-com"># 무게중심</span>
+
+(x, y), radius = cv2.minEnclosingCircle(largest)                     <span class="tok-com"># 최소 외접원</span>
+
+<span class="tok-com"># 실전: 무게중심 좌표 + 외접원 반지름을 함께 사용</span>
+cv2.circle(frame, (cX, cY), <span class="tok-fn">int</span>(radius), (<span class="tok-num">255</span>,<span class="tok-num">255</span>,<span class="tok-num">0</span>), <span class="tok-num">3</span>)</code></pre>
+      </div>
+    </section>
+
+    <!-- ================= I ================= -->
+    <section class="chapter" id="sec-i">
+      <div class="chapter-head">
+        <span class="big-letter">I</span>
+        <div><h2>Interest Point Extraction</h2><span class="stage-tag">Harris Corner Detection</span></div>
+      </div>
+      <div class="prose"><p>이미지 내에서 정보량이 높은 지점(코너)을 찾는다. 크기·회전·조명 변화에도 비교적 안정적이라 이미지 비교·객체 추적의 기반이 된다. (대표: Harris Corner, SIFT, ORB)</p></div>
+      <div class="formula" style="font-size:14px;">Harris(M) ≈ G(I<sub>x</sub><sup>2</sup>)·G(I<sub>y</sub><sup>2</sup>) − G(I<sub>x</sub>I<sub>y</sub>)<sup>2</sup> − α·[G(I<sub>x</sub><sup>2</sup>) + G(I<sub>y</sub><sup>2</sup>)]<sup>2</sup></div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">harris_corner.py</span><span>Sobel → Gaussian → Response → NMS</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">harris</span>(im, k=<span class="tok-num">3</span>, alpha=<span class="tok-num">0.05</span>):
+    dx = cv2.Sobel(im, <span class="tok-num">-1</span>, dx=<span class="tok-num">1</span>, dy=<span class="tok-num">0</span>)
+    dy = cv2.Sobel(im, <span class="tok-num">-1</span>, dx=<span class="tok-num">0</span>, dy=<span class="tok-num">1</span>)
+
+    dxx = cv2.GaussianBlur(dx**<span class="tok-num">2</span>,  (k,k), sigmaX=<span class="tok-num">-1</span>)
+    dyy = cv2.GaussianBlur(dy**<span class="tok-num">2</span>,  (k,k), sigmaX=<span class="tok-num">-1</span>)
+    dxy = cv2.GaussianBlur(dx*dy, (k,k), sigmaX=<span class="tok-num">-1</span>)
+
+    <span class="tok-kw">return</span> dxx*dyy - dxy**<span class="tok-num">2</span> - alpha * (dxx+dyy)**<span class="tok-num">2</span>
+
+response = harris(np.float32(gray_img), k=<span class="tok-num">11</span>, alpha=<span class="tok-num">0.05</span>)
+
+<span class="tok-com"># Local maxima만 남겨 최종 코너 좌표 확정 (Non-Maximum Suppression)</span>
+points = np.argwhere(response > threshold)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">과정 요약</span><p>Sobel(dx,dy) → Gaussian으로 dxx/dyy/dxy 평탄화 → Response 계산 → Thresholding → 8-이웃 비교로 지역 최댓값(코너)만 남김.</p></div>
+    </section>
+
+    <!-- ================= J ================= -->
+    <section class="chapter" id="sec-j">
+      <div class="chapter-head">
+        <span class="big-letter">J</span>
+        <div><h2>실시간 카메라 피드</h2><span class="stage-tag">Jetson CSI 카메라 · GStreamer</span></div>
+      </div>
+      <div class="prose"><p>일반 Webcam은 <code class="inline">cv2.VideoCapture(0)</code>로 바로 열리지만, Jetson의 CSI 카메라는 원본 Bayer 데이터를 ISP가 처리해야 하므로 <b>GStreamer 파이프라인</b>(<code class="inline">nvarguscamerasrc</code>)이 필요하다.</p></div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">webcam_capture.py</span><span>일반 USB 카메라</span></div>
+        <pre><code>cap = cv2.VideoCapture(<span class="tok-num">0</span>)
+<span class="tok-kw">while</span> cap.isOpened():
+    ret, frame = cap.read()
+    <span class="tok-kw">if</span> <span class="tok-kw">not</span> ret <span class="tok-kw">or</span> cv2.waitKey(<span class="tok-num">1</span>) &amp; <span class="tok-num">0xFF</span> == <span class="tok-fn">ord</span>(<span class="tok-str">"q"</span>):
+        <span class="tok-kw">break</span>
+    cv2.imshow(<span class="tok-str">"VideoCapture"</span>, frame)
+cap.release(); cv2.destroyAllWindows()</code></pre>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">jetson_csi_capture.py</span><span>nvarguscamerasrc GStreamer 파이프라인</span></div>
+        <pre><code>pipeline = (
+    <span class="tok-str">"nvarguscamerasrc sensor-id=0 ! "</span>
+    <span class="tok-str">"video/x-raw(memory:NVMM), width=1280, height=720, framerate=30/1 ! "</span>
+    <span class="tok-str">"nvvidconv ! video/x-raw, format=BGRx ! "</span>
+    <span class="tok-str">"videoconvert ! video/x-raw, format=BGR ! appsink"</span>
+)
+cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)</code></pre>
+      </div>
+      <table class="kv-table">
+        <tr><th>방식</th><th>대상</th><th>비고</th></tr>
+        <tr><td><code>cv2.VideoCapture(0)</code></td><td>일반 USB 웹캠</td><td>가장 단순, index 기반</td></tr>
+        <tr><td><code>imutils.VideoStream()</code></td><td>USB / Pi 카메라</td><td>백그라운드 스레드로 프레임 지연 감소</td></tr>
+        <tr><td><code>nvarguscamerasrc</code></td><td>Jetson CSI 카메라</td><td>ISP 통해 Bayer→BGR 변환 필수</td></tr>
+      </table>
+    </section>
+
+    <!-- ================= K ================= -->
+    <section class="chapter" id="sec-k">
+      <div class="chapter-head">
+        <span class="big-letter">K</span>
+        <div><h2>실시간 객체 검출</h2><span class="stage-tag">E · F · H 조합을 프레임 루프에 적용</span></div>
+      </div>
+      <div class="prose"><p>정지 이미지에서 익힌 <b>Color Segmentation → Morphological Operation → Contour Detection</b> 파이프라인을 <code class="inline">while</code> 루프 안에서 매 프레임 반복하면 실시간 객체 검출이 된다. 새로운 개념은 없고, 지금까지의 기법을 프레임 단위로 재사용하는 것이 핵심이다.</p></div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">realtime_detection.py</span><span>프레임 루프 패턴</span></div>
+        <pre><code>lower, upper = np.array([<span class="tok-num">30</span>,<span class="tok-num">60</span>,<span class="tok-num">90</span>]), np.array([<span class="tok-num">230</span>,<span class="tok-num">115</span>,<span class="tok-num">180</span>])  <span class="tok-com"># LAB 기준 예시</span>
+
+<span class="tok-kw">while</span> <span class="tok-fn">True</span>:
+    ret, frame = cap.read()
+    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+    mask = cv2.inRange(lab, lower, upper)                                  <span class="tok-com"># E. Color Segmentation</span>
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=<span class="tok-num">2</span>)   <span class="tok-com"># F. Morphological Operation</span>
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)  <span class="tok-com"># H. Contour</span>
+    <span class="tok-kw">if</span> contours:
+        c = <span class="tok-fn">max</span>(contours, key=cv2.contourArea)
+        (x,y), r = cv2.minEnclosingCircle(c)
+        cv2.circle(frame, (<span class="tok-fn">int</span>(x),<span class="tok-fn">int</span>(y)), <span class="tok-fn">int</span>(r), (<span class="tok-num">0</span>,<span class="tok-num">255</span>,<span class="tok-num">0</span>), <span class="tok-num">2</span>)
+
+    cv2.imshow(<span class="tok-str">"Detection"</span>, frame)</code></pre>
+      </div>
+    </section>
+
+    <!-- ================= L ================= -->
+    <section class="chapter" id="sec-l">
+      <div class="chapter-head">
+        <span class="big-letter">L</span>
+        <div><h2>실시간 객체 추적</h2><span class="stage-tag">Kalman Filter — 예측(Prediction) + 보정(Update)</span></div>
+      </div>
+      <div class="prose"><p>객체가 조명 오염·가려짐 등으로 일시적으로 검출되지 않아도, Kalman Filter는 이전 상태를 바탕으로 위치를 <b>예측</b>하고 새 측정값이 들어오면 <b>보정</b>하여 끊김 없는 추적을 가능하게 한다.</p></div>
+      <div class="pipeline">
+        <div class="step">검출됨 → Predict + Update (측정값 반영)</div><span class="arrow">↻</span>
+        <div class="step" style="border-color:var(--red);">가려짐 → Predict만 (측정값 없이 추정)</div>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">kalman_filter.py</span><span>cv2.KalmanFilter — 상태 [x, y, vx, vy]</span></div>
+        <pre><code>kalman = cv2.KalmanFilter(<span class="tok-num">4</span>, <span class="tok-num">2</span>)   <span class="tok-com"># 상태 4차원(x,y,vx,vy), 측정 2차원(x,y)</span>
+
+kalman.transitionMatrix = np.array(
+    [[<span class="tok-num">1</span>,<span class="tok-num">0</span>,<span class="tok-num">1</span>,<span class="tok-num">0</span>],[<span class="tok-num">0</span>,<span class="tok-num">1</span>,<span class="tok-num">0</span>,<span class="tok-num">1</span>],[<span class="tok-num">0</span>,<span class="tok-num">0</span>,<span class="tok-num">1</span>,<span class="tok-num">0</span>],[<span class="tok-num">0</span>,<span class="tok-num">0</span>,<span class="tok-num">0</span>,<span class="tok-num">1</span>]], dtype=np.float32)
+kalman.measurementMatrix = np.array(
+    [[<span class="tok-num">1</span>,<span class="tok-num">0</span>,<span class="tok-num">0</span>,<span class="tok-num">0</span>],[<span class="tok-num">0</span>,<span class="tok-num">1</span>,<span class="tok-num">0</span>,<span class="tok-num">0</span>]], dtype=np.float32)
+kalman.processNoiseCov     = np.eye(<span class="tok-num">4</span>, dtype=np.float32) * <span class="tok-num">1e-2</span>   <span class="tok-com"># 클수록 측정값을 더 신뢰</span>
+kalman.measurementNoiseCov = np.eye(<span class="tok-num">2</span>, dtype=np.float32) * <span class="tok-num">1.0</span>
+
+<span class="tok-com"># 최초 검출 시 초기 상태 설정</span>
+kalman.statePre = np.array([[cx],[cy],[<span class="tok-num">0.</span>],[<span class="tok-num">0.</span>]], dtype=np.float32)
+
+<span class="tok-kw">if</span> object_detected:
+    kalman.predict()
+    corrected = kalman.correct(np.array([[cx],[cy]], dtype=np.float32))  <span class="tok-com"># 측정값으로 보정</span>
+    x_bel, y_bel = corrected[<span class="tok-num">0</span>,<span class="tok-num">0</span>], corrected[<span class="tok-num">1</span>,<span class="tok-num">0</span>]
+<span class="tok-kw">else</span>:  <span class="tok-com"># 가려짐: 측정값 없이 예측만</span>
+    predicted = kalman.predict()
+    x_bel, y_bel = predicted[<span class="tok-num">0</span>,<span class="tok-num">0</span>], predicted[<span class="tok-num">1</span>,<span class="tok-num">0</span>]</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">노이즈 파라미터</span><p><code class="inline">processNoiseCov</code>가 클수록 모델 예측보다 측정값 변화에 민감하게 반응하고, <code class="inline">measurementNoiseCov</code>가 클수록 측정값을 덜 신뢰하고 예측을 더 신뢰한다.</p></div>
+    </section>
+
+    <!-- ================= M ================= -->
+    <section class="chapter" id="sec-m">
+      <div class="chapter-head">
+        <span class="big-letter">M</span>
+        <div><h2>MediaPipe 실시간 신체 인식</h2><span class="stage-tag">Hand Landmark Detection + 규칙 기반 손가락 카운트</span></div>
+      </div>
+      <div class="prose"><p>MediaPipe의 사전 학습 모델(<code class="inline">hand_landmarker.task</code>)로 손의 21개 관절 좌표를 검출한 뒤, 세 관절 사이의 <b>각도</b>를 계산해 손가락이 펴졌는지 규칙 기반으로 판별한다.</p></div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">hand_landmark.py</span><span>MediaPipe HandLandmarker 초기화 + 검출</span></div>
+        <pre><code><span class="tok-kw">from</span> mediapipe.tasks <span class="tok-kw">import</span> python
+<span class="tok-kw">from</span> mediapipe.tasks.python <span class="tok-kw">import</span> vision
+
+base_option = python.BaseOptions(model_asset_path=<span class="tok-str">"hand_landmarker.task"</span>)
+options = vision.HandLandmarkerOptions(base_options=base_option, num_hands=<span class="tok-num">2</span>)
+hand_detector = vision.HandLandmarker.create_from_options(options)
+
+result = hand_detector.detect(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame))
+<span class="tok-com"># result.hand_landmarks: 손마다 21개 (x,y,z) 정규화 좌표</span></code></pre>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">finger_count.py</span><span>세 관절 각도로 펴짐 여부 판별</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">calculate_angle</span>(p1, p2, p3):   <span class="tok-com"># p2를 중심으로 한 벡터 사이 각도</span>
+    v1 = np.array([p1.x-p2.x, p1.y-p2.y, p1.z-p2.z])
+    v2 = np.array([p3.x-p2.x, p3.y-p2.y, p3.z-p2.z])
+    cosine = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+    <span class="tok-kw">return</span> np.degrees(np.arccos(np.clip(cosine, <span class="tok-num">-1.0</span>, <span class="tok-num">1.0</span>)))
+
+angle_threshold = <span class="tok-num">160</span>   <span class="tok-com"># 이 각도 이상이면 '펴짐'으로 판정</span>
+finger_joints = [(<span class="tok-num">1</span>,<span class="tok-num">2</span>,<span class="tok-num">3</span>), (<span class="tok-num">5</span>,<span class="tok-num">6</span>,<span class="tok-num">7</span>), (<span class="tok-num">9</span>,<span class="tok-num">10</span>,<span class="tok-num">11</span>), (<span class="tok-num">13</span>,<span class="tok-num">14</span>,<span class="tok-num">15</span>), (<span class="tok-num">17</span>,<span class="tok-num">18</span>,<span class="tok-num">19</span>)]
+
+extended = <span class="tok-fn">sum</span>(
+    calculate_angle(hand[a], hand[b], hand[c]) > angle_threshold
+    <span class="tok-kw">for</span> a,b,c <span class="tok-kw">in</span> finger_joints
+)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">핵심 아이디어</span><p>딥러닝 모델(MediaPipe)은 좌표만 뽑고, 그 좌표로 하는 판단(손가락 개수 세기)은 순수 벡터 기하학(각도 계산)으로 처리 — 모델과 규칙 기반 로직을 분리하는 전형적인 패턴이다.</p></div>
+    </section>
+
+    <footer class="page-end">
+      원본: <code class="inline">[ANSWER]_02_Computer-Vision.ipynb</code> · Physical AI Vision-LLM 융합 시청각 멀티모달 시스템 세션 2 정리
+    </footer>
+  </main>
+</div>
+
+<script>
+  (function(){
+    var toggle = document.getElementById('tocToggle');
+    var nav = document.getElementById('tocNav');
+    if(toggle){
+      toggle.addEventListener('click', function(){
+        nav.classList.toggle('open');
+        toggle.textContent = nav.classList.contains('open') ? '목차 접기 ▴' : '목차 펼치기 ▾';
+      });
+    }
+    var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a'));
+    var sections = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+    function onScroll(){
+      var pos = window.scrollY + 120;
+      var activeIdx = 0;
+      for(var i=0;i<sections.length;i++){
+        if(sections[i] && sections[i].offsetTop <= pos) activeIdx = i;
+      }
+      links.forEach(function(a,i){ a.classList.toggle('active', i===activeIdx); });
+    }
+    document.addEventListener('scroll', onScroll, {passive:true});
+    onScroll();
+  })();
+</script>
+</body>
+</html>
