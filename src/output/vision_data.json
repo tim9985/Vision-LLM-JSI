@@ -1,0 +1,46 @@
+{
+    "image_width": 1280,
+    "image_height": 720,
+    "objects": [
+        {
+            "class": "cell phone",
+            "confidence": 0.906,
+            "bbox": {
+                "x1": 649,
+                "y1": 112,
+                "x2": 830,
+                "y2": 446
+            }
+        },
+        {
+            "class": "person",
+            "confidence": 0.903,
+            "bbox": {
+                "x1": 302,
+                "y1": 331,
+                "x2": 943,
+                "y2": 715
+            }
+        },
+        {
+            "class": "person",
+            "confidence": 0.755,
+            "bbox": {
+                "x1": 965,
+                "y1": 234,
+                "x2": 1211,
+                "y2": 710
+            }
+        },
+        {
+            "class": "cup",
+            "confidence": 0.326,
+            "bbox": {
+                "x1": 1123,
+                "y1": 459,
+                "x2": 1279,
+                "y2": 678
+            }
+        }
+    ]
+}
