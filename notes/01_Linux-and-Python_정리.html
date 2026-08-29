@@ -411,6 +411,10 @@
         <li><a href="#sec-i"><span class="letter">I</span>Indexing · axis</a></li>
         <li><a href="#sec-j"><span class="letter">J</span>Boolean · 정규화</a></li>
       </ol>
+    <div class="group-label">04 · 정답 코드</div>
+      <ol>
+        <li><a href="#sec-k"><span class="letter">K</span>실습 정답 코드</a></li>
+      </ol>
     </nav>
   </aside>
 
@@ -770,6 +774,71 @@ arr = arr / arr.max()      <span class="tok-com"># 최댓값으로 나눠 1로 �
           <li>순서 주의: <code class="inline">min</code>을 빼기 <b>전에</b> <code class="inline">max</code>로 나누면 최솟값이 0이 되지 않는다</li>
         </ul>
       </div>
+    </section>
+
+    <!-- ================= K : ANSWER ================= -->
+    <section class="chapter" id="sec-k">
+      <div class="chapter-head">
+        <span class="big-letter">K</span>
+        <div><h2>실습 정답 코드</h2><span class="stage-tag">[ANSWER]_01_Linux-and-Python.ipynb</span></div>
+      </div>
+      <div class="prose"><p>본문 각 절의 <code class="inline">TODO</code>와 Section Project의 공식 정답입니다.</p></div>
+
+      <h3 style="font-size:16px;margin:26px 0 6px;">본문 TODO <span style="color:var(--ink-faint);font-weight:400;">(셀 32 · 49 · 57 · 79 · 80)</span></h3>
+      <div class="code-card">
+        <div class="bar"><span class="fn">todos.py</span><span>형변환 · Comprehension · zip · 정규화</span></div>
+        <pre><code><span class="tok-com"># 32) "0.8825" → 88점 : float를 먼저 거쳐야 한다</span>
+score_int = <span class="tok-fn">int</span>(<span class="tok-fn">float</span>(score_str) * <span class="tok-num">100</span>)
+print(<span class="tok-str">"최종 점수: "</span> + <span class="tok-fn">str</span>(score_int) + <span class="tok-str">"점"</span>)
+
+<span class="tok-com"># 49) 2차원 리스트를 평탄화하며 50점 이상만</span>
+passed_scores = [score <span class="tok-kw">for</span> row <span class="tok-kw">in</span> scores <span class="tok-kw">for</span> score <span class="tok-kw">in</span> row <span class="tok-kw">if</span> score &gt;= <span class="tok-num">50</span>]
+
+<span class="tok-com"># 57) enumerate + zip 조합 — zip 결과를 괄호로 한 번 더 푼다</span>
+<span class="tok-kw">for</span> idx, (name, score) <span class="tok-kw">in</span> <span class="tok-fn">enumerate</span>(<span class="tok-fn">zip</span>(students, scores), start=<span class="tok-num">1</span>):
+    <span class="tok-kw">if</span> score &gt;= <span class="tok-num">80</span>:
+        print(<span class="tok-str">f"{idx}번 {name} 학생 (점수: {score}점)"</span>)
+
+<span class="tok-com"># 79) 합이 1이 되도록 정규화</span>
+np_arr_normalized = np_arr / np_arr.sum()
+
+<span class="tok-com"># 80) 범위를 0.0 ~ 1.0으로 (Min-Max) — min을 먼저 빼야 한다</span>
+np_arr_float32 = np_arr.astype(np.float32)
+np_arr_shifted = np_arr_float32 - np_arr_float32.min()
+np_arr_final   = np_arr_shifted / np_arr_shifted.max()</code></pre>
+      </div>
+
+      <h3 style="font-size:16px;margin:30px 0 6px;">Section Project — 학생 성적 분석 <span style="color:var(--ink-faint);font-weight:400;">(셀 89)</span></h3>
+      <div class="prose"><p>5명 학생의 <code class="inline">"studentID_name"</code> 명단과 3과목 점수 2차원 배열이 주어집니다. 이 절의 모든 도구(슬라이싱 · comprehension · <code class="inline">flatten</code> · Boolean · <code class="inline">axis</code> · <code class="inline">argmax</code>)가 한 번에 쓰입니다.</p></div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">student_analysis.py</span><span>1~6번 분석</span></div>
+        <pre><code><span class="tok-com"># 1. 이름만 추출 — "zg0505_짱구" 에서 앞 7글자를 잘라낸다</span>
+student_names = [name[<span class="tok-num">7</span>:] <span class="tok-kw">for</span> name <span class="tok-kw">in</span> raw_students]
+
+<span class="tok-com"># 2. 모든 성적을 1차원으로 (5x3 → 15개)</span>
+all_scores = raw_scores.flatten()
+
+<span class="tok-com"># 3. 85점 이상 개수 — Boolean 배열의 합 = 개수</span>
+over_85 = (all_scores &gt;= <span class="tok-num">85</span>).sum()
+
+<span class="tok-com"># 4. 학생별 평균 — 과목(열) 축을 뭉갠다</span>
+student_means = np.mean(raw_scores, axis=<span class="tok-num">1</span>)
+
+<span class="tok-kw">for</span> idx, (name, mean) <span class="tok-kw">in</span> <span class="tok-fn">enumerate</span>(<span class="tok-fn">zip</span>(student_names, student_means)):
+    sep = <span class="tok-str">", "</span> <span class="tok-kw">if</span> idx &lt; <span class="tok-fn">len</span>(student_names) - <span class="tok-num">1</span> <span class="tok-kw">else</span> <span class="tok-str">"\n"</span>
+    print(<span class="tok-str">f"{name} {mean:.1f}점"</span>, end=sep)
+
+<span class="tok-com"># 5. 평균 최고 학생 — argmax는 '인덱스'를 준다</span>
+top_student_idx  = np.argmax(student_means)
+top_student_name = student_names[top_student_idx]
+
+<span class="tok-com"># 6. 단일 과목 최고 점수 + 과목명 + 학생명</span>
+overall_max_score   = np.max(all_scores)
+overall_max_idx     = np.argmax(all_scores)                        <span class="tok-com"># 평탄화된 배열에서의 위치</span>
+overall_max_subject = subjects[overall_max_idx % <span class="tok-fn">len</span>(subjects)]      <span class="tok-com"># 나머지 → 열(과목)</span>
+overall_max_student = student_names[overall_max_idx // <span class="tok-fn">len</span>(subjects)]  <span class="tok-com"># 몫 → 행(학생)</span></code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">핵심 트릭 — 평탄화된 인덱스 되돌리기</span><p><code class="inline">flatten()</code>한 배열에서 <code class="inline">argmax</code>로 얻은 인덱스는 <b>1차원 위치</b>입니다. 원래 2차원 위치로 되돌리려면 과목 수(3)로 <b>나눈 몫이 행(학생)</b>, <b>나머지가 열(과목)</b>입니다.<br><br>예: 15개 중 7번째(<code class="inline">idx=7</code>) → <code class="inline">7 // 3 = 2</code>번 학생(맹구), <code class="inline">7 % 3 = 1</code>번 과목(수학). 정답 노트북은 <code class="inline">%</code>만 쓰고 <code class="inline">//</code> 부분이 중간에 잘려 있으니 직접 채워야 합니다.<br><br>NumPy에는 이걸 해주는 <code class="inline">np.unravel_index(idx, shape)</code>도 있습니다.</p></div>
     </section>
 
     <footer class="page-end">

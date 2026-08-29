@@ -416,6 +416,10 @@
         <li><a href="#sec-l"><span class="letter">L</span>실시간 객체 추적</a></li>
         <li><a href="#sec-m"><span class="letter">M</span>MediaPipe 신체 인식</a></li>
       </ol>
+    <div class="group-label">04 · 정답 코드</div>
+      <ol>
+        <li><a href="#sec-n"><span class="letter">N</span>실습 정답 코드</a></li>
+      </ol>
     </nav>
   </aside>
 
@@ -944,6 +948,65 @@ extended = <span class="tok-fn">sum</span>(
 )</code></pre>
       </div>
       <div class="takeaway"><span class="mark">핵심 아이디어</span><p>딥러닝 모델(MediaPipe)은 좌표만 뽑고, 그 좌표로 하는 판단(손가락 개수 세기)은 순수 벡터 기하학(각도 계산)으로 처리 — 모델과 규칙 기반 로직을 분리하는 전형적인 패턴이다.</p></div>
+    </section>
+
+    <!-- ================= N : ANSWER ================= -->
+    <section class="chapter" id="sec-n">
+      <div class="chapter-head">
+        <span class="big-letter">N</span>
+        <div><h2>실습 정답 코드</h2><span class="stage-tag">[ANSWER]_02_Computer-Vision.ipynb</span></div>
+      </div>
+      <div class="prose"><p>이 노트의 본문 코드는 모두 정답 노트북 기준으로 정리되어 있습니다. 여기서는 마지막 통합 실습인 <b>손가락 개수 세기</b>의 전체 구조와 Section Project를 다룹니다.</p></div>
+
+      <h3 style="font-size:16px;margin:26px 0 6px;">규칙 기반 손가락 카운트 <span style="color:var(--ink-faint);font-weight:400;">(셀 277)</span></h3>
+      <div class="code-card">
+        <div class="bar"><span class="fn">finger_count_full.py</span><span>MediaPipe 좌표 + 벡터 기하학</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">calculate_angle</span>(p1, p2, p3):
+    <span class="tok-com"># p2를 꼭짓점으로 하는 두 벡터 사이의 각도</span>
+    vector1 = np.array([p1.x - p2.x, p1.y - p2.y, p1.z - p2.z])
+    vector2 = np.array([p3.x - p2.x, p3.y - p2.y, p3.z - p2.z])
+
+    magnitude1 = np.linalg.norm(vector1)
+    magnitude2 = np.linalg.norm(vector2)
+
+    <span class="tok-kw">if</span> magnitude1 == <span class="tok-num">0</span> <span class="tok-kw">or</span> magnitude2 == <span class="tok-num">0</span>:
+        <span class="tok-kw">return</span> <span class="tok-num">0.0</span>                      <span class="tok-com"># ZeroDivisionError 방지</span>
+
+    cosine = np.dot(vector1, vector2) / (magnitude1 * magnitude2)
+    cosine = np.clip(cosine, <span class="tok-num">-1.0</span>, <span class="tok-num">1.0</span>)     <span class="tok-com"># 부동소수 오차로 |cos|&gt;1 이 되는 것 방지</span>
+
+    <span class="tok-kw">return</span> np.degrees(np.arccos(cosine))
+
+
+base_option   = python.BaseOptions(model_asset_path=<span class="tok-str">"src/models/MediaPipe/hand_landmarker.task"</span>)
+options       = vision.HandLandmarkerOptions(base_options=base_option, num_hands=<span class="tok-num">2</span>)
+hand_detector = vision.HandLandmarker.create_from_options(options)
+connections   = vision.HandLandmarksConnections.HAND_CONNECTIONS   <span class="tok-com"># landmark 연결선</span>
+
+finger_tips     = (<span class="tok-num">4</span>, <span class="tok-num">8</span>, <span class="tok-num">12</span>, <span class="tok-num">16</span>, <span class="tok-num">20</span>)   <span class="tok-com"># 손가락 끝 landmark index</span>
+angle_threshold = <span class="tok-num">160</span>                     <span class="tok-com"># 이 각도 이상이면 '펴짐'</span>
+
+finger_angle_points = (
+    (<span class="tok-num">1</span>,  <span class="tok-num">2</span>,  <span class="tok-num">3</span>),    <span class="tok-com"># 엄지:  2번이 꼭짓점</span>
+    (<span class="tok-num">5</span>,  <span class="tok-num">6</span>,  <span class="tok-num">7</span>),    <span class="tok-com"># 검지:  6번</span>
+    (<span class="tok-num">9</span>,  <span class="tok-num">10</span>, <span class="tok-num">11</span>),   <span class="tok-com"># 중지: 10번</span>
+    (<span class="tok-num">13</span>, <span class="tok-num">14</span>, <span class="tok-num">15</span>),   <span class="tok-com"># 약지: 14번</span>
+    (<span class="tok-num">17</span>, <span class="tok-num">18</span>, <span class="tok-num">19</span>),   <span class="tok-com"># 소지: 18번</span>
+)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">두 개의 안전장치</span><p><code class="inline">np.linalg.norm</code>이 0이면 나눗셈이 터지므로 <b>먼저 0을 확인</b>하고, <code class="inline">np.clip(cosine, -1.0, 1.0)</code>으로 <b>부동소수 오차</b>를 막습니다. 이론상 코사인은 −1~1이지만 계산 오차로 <code class="inline">1.0000001</code>이 나오면 <code class="inline">arccos</code>가 <code class="inline">nan</code>을 반환합니다.</p></div>
+      <div class="takeaway"><span class="mark">설계 패턴</span><p>딥러닝 모델(MediaPipe)은 <b>좌표만 뽑고</b>, 그 좌표로 하는 판단(손가락 개수)은 <b>순수 벡터 기하학</b>으로 처리합니다. 모델과 규칙 기반 로직을 분리하는 이 패턴은 06 세션에서도 반복됩니다 — YOLO가 위치를 찾고, 판단은 Gemma가 합니다.</p></div>
+
+      <h3 style="font-size:16px;margin:30px 0 6px;">Section Project</h3>
+      <div class="callout">
+        <span class="label">자유 주제 — 객체 인식 + 추적 + 신체와의 관계</span>
+        <ul>
+          <li>이 섹션의 모든 기술을 조합합니다: 이미지 조정 · 색공간 변환 · Image Enhancement · 필터링 · Color Segmentation · Contour Detection · 객체 추적 · 신체 인식</li>
+          <li>객체를 인식·추적하고 <b>신체와의 관계성</b>을 통해 결과를 텍스트나 이미지 overlay로 표현</li>
+          <li>예: 손 landmark와 공의 중심 좌표 사이 거리를 재서 "잡았다/놓쳤다" 판정, 손이 가리키는 방향의 객체 강조</li>
+          <li>정답 노트북에도 비어 있는 <b>자유 과제</b>입니다 — 결과 표현 방식은 창의적으로 허용됩니다</li>
+        </ul>
+      </div>
     </section>
 
     <footer class="page-end">
