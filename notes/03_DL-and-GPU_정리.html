@@ -1,0 +1,957 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>딥러닝 · GPU 가속 실습 노트</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;display=swap">
+
+<style>
+  :root{
+    --bg:#F1F3F1;
+    --surface:#FFFFFF;
+    --surface-2:#E7EBE8;
+    --surface-3:#DCE2DE;
+    --ink:#14181A;
+    --ink-soft:#55605C;
+    --ink-faint:#8A948F;
+    --border:#D5DBD7;
+    --accent:#C8631F;
+    --accent-soft:#F1E0CE;
+    --accent-ink:#FFFFFF;
+    --accent2:#227373;
+    --accent2-soft:#DCEAEA;
+    --red:#B23A32;
+    --code-kw:#8B4A9C;
+    --code-str:#2E7D46;
+    --code-com:#8A948F;
+    --code-fn:#1D6FB8;
+    --code-num:#B2622E;
+    --shadow: 0 1px 2px rgba(20,24,26,.06), 0 8px 24px -12px rgba(20,24,26,.18);
+    --radius: 10px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#14181A;
+      --surface:#1B2023;
+      --surface-2:#20272A;
+      --surface-3:#283130;
+      --ink:#E8EDE9;
+      --ink-soft:#9AA8A2;
+      --ink-faint:#657069;
+      --border:#313B38;
+      --accent:#E39150;
+      --accent-soft:#3A2A1B;
+      --accent-ink:#1A1006;
+      --accent2:#5FC2C0;
+      --accent2-soft:#17302F;
+      --red:#E07B72;
+      --code-kw:#C892D8;
+      --code-str:#7FCB93;
+      --code-com:#7C8983;
+      --code-fn:#7EB6E8;
+      --code-num:#E3A374;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14181A;
+    --surface:#1B2023;
+    --surface-2:#20272A;
+    --surface-3:#283130;
+    --ink:#E8EDE9;
+    --ink-soft:#9AA8A2;
+    --ink-faint:#657069;
+    --border:#313B38;
+    --accent:#E39150;
+    --accent-soft:#3A2A1B;
+    --accent-ink:#1A1006;
+    --accent2:#5FC2C0;
+    --accent2-soft:#17302F;
+    --red:#E07B72;
+    --code-kw:#C892D8;
+    --code-str:#7FCB93;
+    --code-com:#7C8983;
+    --code-fn:#7EB6E8;
+    --code-num:#E3A374;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"IBM Plex Sans","IBM Plex Sans KR",-apple-system,sans-serif;
+    font-size:16px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  a{ color:var(--accent2); text-decoration-thickness: 1.5px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, summary:focus-visible{
+    outline: 2.5px solid var(--accent2); outline-offset: 2px; border-radius:4px;
+  }
+
+  h1,h2,h3,h4{
+    font-family:"IBM Plex Sans Condensed","IBM Plex Sans KR",sans-serif;
+    font-weight:700;
+    text-wrap:balance;
+    margin:0;
+    letter-spacing:.1px;
+  }
+
+  .layout{
+    display:grid;
+    grid-template-columns: 250px minmax(0,1fr);
+    max-width:1180px;
+    margin:0 auto;
+    align-items:start;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+    padding:28px 14px 28px 20px;
+    border-right:1px solid var(--border);
+    scrollbar-width:thin;
+  }
+  .brand{
+    display:block;
+    font-family:"IBM Plex Sans Condensed",sans-serif;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-bottom:4px;
+  }
+  .brand strong{
+    display:block;
+    font-size:19px;
+    letter-spacing:0;
+    text-transform:none;
+    color:var(--ink);
+    margin-top:6px;
+    line-height:1.25;
+  }
+  nav.toc{ margin-top:26px; }
+  nav.toc .group-label{
+    font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--ink-faint); font-weight:600; padding:0 10px; margin:18px 0 6px;
+  }
+  nav.toc .group-label:first-child{ margin-top:0; }
+  nav.toc ol{ list-style:none; margin:0; padding:0; counter-reset:none; }
+  nav.toc a{
+    display:flex; align-items:baseline; gap:10px;
+    padding:6px 10px; border-radius:7px;
+    color:var(--ink-soft); text-decoration:none; font-size:14.5px;
+    transition:background .12s ease, color .12s ease;
+  }
+  nav.toc a:hover{ background:var(--surface-2); color:var(--ink); }
+  nav.toc a .letter{
+    font-family:"IBM Plex Mono",monospace; font-size:12.5px; font-weight:600;
+    color:var(--accent); width:1.1em; flex:none;
+  }
+  nav.toc a.active{ background:var(--accent-soft); color:var(--ink); }
+  nav.toc a.active .letter{ color:var(--accent); }
+
+  /* ---------- Main ---------- */
+  main{ padding:56px 44px 120px; min-width:0; }
+
+  header.hero{ max-width:660px; margin-bottom:54px; }
+  .eyebrow{
+    font-family:"IBM Plex Sans Condensed",sans-serif;
+    font-size:12.5px; letter-spacing:.11em; text-transform:uppercase;
+    color:var(--accent); font-weight:600; margin-bottom:14px; display:block;
+  }
+  header.hero h1{ font-size:38px; line-height:1.15; margin-bottom:16px; }
+  header.hero .sub{ color:var(--ink-soft); font-size:16.5px; max-width:58ch; }
+
+  .stage-row{
+    display:flex; flex-wrap:wrap; gap:10px; margin-top:26px;
+  }
+  .stage-chip{
+    display:flex; align-items:center; gap:8px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:999px; padding:7px 14px 7px 10px; font-size:13.5px; color:var(--ink-soft);
+  }
+  .stage-chip b{ color:var(--ink); font-weight:600; }
+  .stage-chip .n{
+    width:20px; height:20px; border-radius:50%; background:var(--accent2-soft); color:var(--accent2);
+    display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:700;
+    font-family:"IBM Plex Mono",monospace;
+  }
+
+  section.chapter{
+    padding-top:52px; margin-top:6px; border-top:1px solid var(--border);
+    scroll-margin-top: 20px;
+  }
+  section.chapter:first-of-type{ border-top:none; padding-top:0; }
+
+  .chapter-head{ display:flex; gap:18px; align-items:flex-start; margin-bottom:22px; }
+  .chapter-head .big-letter{
+    font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700;
+    font-size:44px; line-height:1; color:var(--accent2); flex:none;
+    min-width:.9em;
+  }
+  .chapter-head h2{ font-size:25px; padding-top:5px; }
+  .chapter-head .stage-tag{
+    display:inline-block; margin-top:8px;
+    font-size:11.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:600;
+    color:var(--ink-faint);
+  }
+
+  .prose{ max-width:70ch; }
+  .prose p{ margin:0 0 14px; color:var(--ink); }
+  .prose p.soft{ color:var(--ink-soft); }
+
+  .callout{
+    background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent2);
+    border-radius:8px; padding:16px 20px; margin:18px 0 22px; max-width:70ch;
+    box-shadow:var(--shadow);
+  }
+  .callout .label{
+    font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
+    color:var(--accent2); margin-bottom:8px; display:block;
+  }
+  .callout ul{ margin:0; padding-left:20px; }
+  .callout li{ margin-bottom:6px; color:var(--ink); }
+  .callout li:last-child{ margin-bottom:0; }
+  .callout li .k{ color:var(--ink-soft); }
+
+  .takeaway{
+    display:flex; gap:12px; align-items:flex-start;
+    background:var(--accent-soft); border-radius:8px; padding:14px 18px;
+    margin-top:22px; max-width:70ch;
+  }
+  .takeaway .mark{
+    font-family:"IBM Plex Mono",monospace; font-weight:700; color:var(--accent); font-size:13px;
+    flex:none; margin-top:2px;
+  }
+  .takeaway p{ margin:0; color:var(--ink); font-size:14.5px; }
+
+  /* formula */
+  .formula{
+    font-family:"IBM Plex Mono",monospace; background:var(--surface-2);
+    border:1px solid var(--border); border-radius:8px;
+    padding:16px 22px; margin:16px 0; max-width:70ch;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    font-size:15.5px; overflow-x:auto;
+  }
+  .formula .frac{
+    display:inline-flex; flex-direction:column; align-items:center; vertical-align:middle;
+    margin:0 3px; line-height:1.3;
+  }
+  .formula .frac .num{ border-bottom:1.4px solid currentColor; padding:0 4px 1px; }
+  .formula .frac .den{ padding:1px 4px 0; }
+  .formula sup{ font-size:.7em; }
+
+  /* code card */
+  .code-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    margin:16px 0 22px; overflow:hidden; box-shadow:var(--shadow);
+    max-width: 100%;
+  }
+  .code-card .bar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:9px 16px; background:var(--surface-2); border-bottom:1px solid var(--border);
+    font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-soft);
+  }
+  .code-card .bar .fn{ color:var(--ink); font-weight:600; }
+  .code-card pre{
+    margin:0; padding:16px 18px; overflow-x:auto;
+    font-family:"IBM Plex Mono",monospace; font-size:13.3px; line-height:1.62;
+  }
+  .code-card code{ color:var(--ink); }
+  .tok-kw{ color:var(--code-kw); }
+  .tok-str{ color:var(--code-str); }
+  .tok-com{ color:var(--code-com); font-style:italic; }
+  .tok-fn{ color:var(--code-fn); }
+  .tok-num{ color:var(--code-num); }
+
+  .kv-table{ width:100%; border-collapse:collapse; margin:14px 0 20px; max-width:70ch; font-size:14px; }
+  .kv-table th, .kv-table td{
+    text-align:left; padding:8px 12px; border-bottom:1px solid var(--border);
+  }
+  .kv-table th{ color:var(--ink-faint); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.05em; }
+  .kv-table td code{ font-family:"IBM Plex Mono",monospace; font-size:12.8px; background:var(--surface-2); padding:1px 5px; border-radius:4px; }
+  .kv-table td.num{ font-variant-numeric: tabular-nums; }
+
+  .compare{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:16px 0 22px; max-width:70ch; }
+  .compare .box{ background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
+  .compare .box h4{ font-size:14px; margin-bottom:8px; color:var(--ink); }
+  .compare .box.pos{ border-left:3px solid var(--accent2); }
+  .compare .box.neg{ border-left:3px solid var(--red); }
+  .compare ul{ margin:0; padding-left:18px; font-size:13.6px; color:var(--ink-soft); }
+  .compare li{ margin-bottom:4px; }
+
+  /* kernel grid visual */
+  .kernel-row{ display:flex; gap:28px; flex-wrap:wrap; margin:18px 0 22px; }
+  .kernel{ text-align:center; }
+  .kernel .cap{ font-size:12.5px; color:var(--ink-soft); margin-bottom:8px; }
+  .kernel .grid3{
+    display:grid; grid-template-columns:repeat(3,34px); grid-template-rows:repeat(3,34px);
+    gap:3px; background:var(--border); border:1px solid var(--border); border-radius:6px; overflow:hidden;
+  }
+  .kernel .grid3 span{
+    background:var(--surface); display:flex; align-items:center; justify-content:center;
+    font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--ink);
+  }
+  .kernel .grid3 span.center{ background:var(--accent-soft); color:var(--accent); font-weight:700; }
+  .kernel .grid3 span.neg{ color:var(--red); }
+
+  /* HSV wheel */
+  .hsv-wrap{ display:flex; gap:32px; align-items:center; flex-wrap:wrap; margin:18px 0 24px; }
+  .hsv-wrap svg{ flex:none; }
+  .hsv-legend{ font-size:13.6px; color:var(--ink-soft); max-width:34ch; }
+  .hsv-legend div{ margin-bottom:6px; }
+  .hsv-legend b{ color:var(--ink); }
+
+  .pipeline{
+    display:flex; align-items:center; flex-wrap:wrap; gap:0; margin:18px 0 24px; max-width:70ch;
+  }
+  .pipeline .step{
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:9px 14px; font-size:13px; color:var(--ink); white-space:nowrap;
+  }
+  .pipeline .arrow{ color:var(--ink-faint); padding:0 8px; font-size:15px; }
+
+  footer.page-end{
+    max-width:70ch; margin-top:64px; padding-top:26px; border-top:1px solid var(--border);
+    color:var(--ink-faint); font-size:13px;
+  }
+
+  code.inline{
+    font-family:"IBM Plex Mono",monospace; background:var(--surface-2);
+    padding:1.5px 6px; border-radius:5px; font-size:.88em; color:var(--ink);
+  }
+
+  .mobile-toc-toggle{ display:none; }
+
+  @media (max-width: 900px){
+    .layout{ grid-template-columns: 1fr; }
+    .sidebar{
+      position:static; height:auto; border-right:none; border-bottom:1px solid var(--border);
+      padding:16px 20px;
+    }
+    nav.toc{ display:none; margin-top:14px; }
+    nav.toc.open{ display:block; }
+    .mobile-toc-toggle{
+      display:flex; align-items:center; gap:8px; width:100%;
+      background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
+      padding:10px 14px; color:var(--ink); font-size:13.5px; font-weight:600;
+      font-family:"IBM Plex Sans Condensed",sans-serif; letter-spacing:.03em;
+    }
+    main{ padding:38px 20px 90px; }
+    .compare{ grid-template-columns:1fr; }
+    header.hero h1{ font-size:30px; }
+  }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; scroll-behavior:auto !important; } }
+
+  html{ scroll-behavior:smooth; }
+
+  /* ---------- Print (PDF로 저장 시) ---------- */
+  @media print{
+    :root{
+      --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F3F4F2; --surface-3:#EAEDEA;
+      --ink:#14181A; --ink-soft:#4A5450; --ink-faint:#78827D; --border:#CBD2CD;
+      --shadow:none;
+    }
+    * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body{ font-size:12.5px; }
+    .layout{ display:block; max-width:none; }
+    .sidebar{ display:none; }
+    main{ padding:0 6mm; }
+    header.hero{ margin-bottom:30px; }
+    .stage-chip{ break-inside:avoid; }
+    section.chapter{
+      border-top:1px solid var(--border);
+      break-before:page; padding-top:24px;
+    }
+    section.chapter:first-of-type{ break-before:avoid; }
+    .code-card, .callout, .compare, .kv-table, .takeaway, .kernel-row, .hsv-wrap, .formula, .pipeline{
+      break-inside:avoid;
+    }
+    a{ color:var(--ink); text-decoration:none; }
+    .code-card pre{ white-space:pre-wrap; word-break:break-word; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <span class="brand">Study Notes<strong>딥러닝 기초<br>및 GPU 가속</strong></span>
+    <button class="mobile-toc-toggle" id="tocToggle" type="button">목차 펼치기 ▾</button>
+    <nav class="toc" id="tocNav">
+      <div class="group-label">01 · 신경망의 최소 단위</div>
+      <ol>
+        <li><a href="#sec-a"><span class="letter">A</span>퍼셉트론</a></li>
+        <li><a href="#sec-b"><span class="letter">B</span>다층 퍼셉트론</a></li>
+        <li><a href="#sec-c"><span class="letter">C</span>활성화 함수</a></li>
+        <li><a href="#sec-d"><span class="letter">D</span>인공신경망 학습</a></li>
+      </ol>
+      <div class="group-label">02 · CNN</div>
+      <ol>
+        <li><a href="#sec-e"><span class="letter">E</span>CNN · Feature Map</a></li>
+        <li><a href="#sec-f"><span class="letter">F</span>MNIST 실습</a></li>
+      </ol>
+      <div class="group-label">03 · GPU 가속</div>
+      <ol>
+        <li><a href="#sec-g"><span class="letter">G</span>CuPy</a></li>
+        <li><a href="#sec-h"><span class="letter">H</span>PyTorch · Device</a></li>
+        <li><a href="#sec-i"><span class="letter">I</span>MNIST GPU 학습</a></li>
+        <li><a href="#sec-j"><span class="letter">J</span>CIFAR-10</a></li>
+      </ol>
+    </nav>
+  </aside>
+
+  <main>
+    <header class="hero">
+      <span class="eyebrow">03_DL-and-GPU.ipynb 기반 정리</span>
+      <h1>딥러닝 기초 및 GPU 가속</h1>
+      <p class="sub">퍼셉트론 한 개에서 시작해 논리회로를 학습시키고, CNN으로 이미지를 분류한 뒤,
+      같은 연산을 CuPy와 PyTorch로 GPU에 올려 Jetson에서 실제로 가속되는 것까지 확인하는 과정입니다.</p>
+      <div class="stage-row">
+        <div class="stage-chip"><span class="n">1</span> <b>신경망 기초</b>&nbsp;퍼셉트론 · 활성화 · 역전파</div>
+        <div class="stage-chip"><span class="n">2</span> <b>CNN</b>&nbsp;Feature Map · MNIST</div>
+        <div class="stage-chip"><span class="n">3</span> <b>GPU 가속</b>&nbsp;CuPy · PyTorch · CIFAR-10</div>
+      </div>
+    </header>
+
+    <!-- A -->
+    <section class="chapter" id="sec-a">
+      <div class="chapter-head">
+        <span class="big-letter">A</span>
+        <div><h2>퍼셉트론</h2><span class="stage-tag">가중합 + 편향 → 활성화 함수</span></div>
+      </div>
+      <div class="prose"><p>퍼셉트론은 인공신경망의 <b>최소 단위</b>다. 입력마다 가중치를 곱해 더하고(가중합), 편향을 더한 뒤, 활성화 함수를 통과시켜 출력을 만든다.</p></div>
+      <div class="formula">z = w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b &nbsp;&nbsp;→&nbsp;&nbsp; y = f(z)</div>
+
+      <table class="kv-table">
+        <tr><th>용어</th><th>의미</th><th>직관</th></tr>
+        <tr><td>입력 <code>x</code></td><td>모델이 받는 외부 데이터</td><td>재료</td></tr>
+        <tr><td>가중치 <code>w</code></td><td>각 입력이 결과에 미치는 영향력</td><td>재료별 중요도</td></tr>
+        <tr><td>편향 <code>b</code></td><td>얼마나 쉽게 활성화될지 정하는 상수</td><td><b>발동 문턱값</b></td></tr>
+        <tr><td>활성화 <code>f</code></td><td><code>z</code>를 최종 출력으로 변환</td><td>켜짐/꺼짐 판정</td></tr>
+      </table>
+
+      <div class="prose"><p><b>편향의 역할이 핵심이다.</b> <code class="inline">z ≥ 0</code>일 때 1을 출력하므로 <code class="inline">b = -0.7</code>은 "가중합이 0.7을 넘어야 켜진다"는 뜻이다. 편향의 절댓값이 클수록 발동이 까다로워진다.</p></div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">perceptron_gates.py</span><span>AND 게이트 — NumPy 버전</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">step_function</span>(z):
+    <span class="tok-kw">return</span> <span class="tok-num">1</span> <span class="tok-kw">if</span> z &gt;= <span class="tok-num">0</span> <span class="tok-kw">else</span> <span class="tok-num">0</span>
+
+<span class="tok-kw">def</span> <span class="tok-fn">AND</span>(x1, x2):
+    x = np.array([x1, x2])          <span class="tok-com"># 입력</span>
+    w = np.array([<span class="tok-num">0.5</span>, <span class="tok-num">0.5</span>])      <span class="tok-com"># 가중치</span>
+    b = <span class="tok-num">-0.7</span>                      <span class="tok-com"># 편향</span>
+
+    z = np.sum(x * w) + b           <span class="tok-com"># 가중합 + 편향</span>
+    <span class="tok-kw">return</span> step_function(z)         <span class="tok-com"># 활성화 함수</span></code></pre>
+      </div>
+
+      <table class="kv-table">
+        <tr><th>게이트</th><th>w1</th><th>w2</th><th>b</th><th>발동 조건</th></tr>
+        <tr><td>AND</td><td class="num">0.5</td><td class="num">0.5</td><td class="num">-0.7</td><td>둘 다 1이어야 0.7 초과</td></tr>
+        <tr><td>OR</td><td class="num">0.5</td><td class="num">0.5</td><td class="num">-0.2</td><td>하나만 1이어도 0.2 초과</td></tr>
+        <tr><td>NAND</td><td class="num">-0.5</td><td class="num">-0.5</td><td class="num">0.7</td><td>AND의 부호 전부 반전</td></tr>
+        <tr><td>NOR</td><td class="num">-0.5</td><td class="num">-0.5</td><td class="num">0.2</td><td>OR의 부호 전부 반전</td></tr>
+        <tr><td><b>XOR</b></td><td colspan="3" style="text-align:center;">—</td><td><b>단층으로는 불가능</b></td></tr>
+      </table>
+      <div class="takeaway"><span class="mark">POINT</span><p><b>NAND = AND의 (w, b) 부호 반전</b>, <b>NOR = OR의 부호 반전</b>. 이 규칙 하나로 네 게이트를 다 만들 수 있다. <code class="inline">np.sum(x * w)</code>의 <code class="inline">*</code>는 원소별 곱이고, 배치 연산에서는 <code class="inline">X @ w</code>(행렬곱)를 쓴다.</p></div>
+    </section>
+
+    <!-- B -->
+    <section class="chapter" id="sec-b">
+      <div class="chapter-head">
+        <span class="big-letter">B</span>
+        <div><h2>다층 퍼셉트론</h2><span class="stage-tag">XOR은 왜 은닉층이 필요한가</span></div>
+      </div>
+      <div class="compare">
+        <div class="box neg"><h4>단층 퍼셉트론 (SLP)</h4><ul><li>입력층 – 출력층</li><li><b>선형 분리 가능</b> 문제만</li></ul></div>
+        <div class="box pos"><h4>다층 퍼셉트론 (MLP)</h4><ul><li>입력층 – <b>은닉층</b> – 출력층</li><li>비선형 분리 문제 해결</li></ul></div>
+      </div>
+      <div class="prose"><p>XOR을 평면에 찍으면 <code class="inline">(0,0)=0, (0,1)=1, (1,0)=1, (1,1)=0</code>이라 <b>직선 하나로 0과 1을 나눌 수 없다</b>. 단층 퍼셉트론이 원리적으로 못 푸는 이유다. 은닉층을 하나 넣어 좌표를 한 번 접으면 선형 분리가 가능해진다.</p></div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">xor.py</span><span>XOR = AND(NAND, OR)</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">XOR</span>(x1, x2):
+    s1 = NAND(x1, x2)   <span class="tok-com"># 은닉층 노드 1</span>
+    s2 = OR(x1, x2)     <span class="tok-com"># 은닉층 노드 2</span>
+    <span class="tok-kw">return</span> AND(s1, s2)   <span class="tok-com"># 출력층</span></code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">오해 주의</span><p>은닉층 노드는 새로운 연산이 아니라 <b>같은 퍼셉트론을 병렬로 여러 개 둔 것</b>이다. 그리고 XOR은 <b>층(깊이)</b>이 필요한 문제지 노드 수의 문제가 아니다 — 단층에서 노드만 늘려도 여전히 선형 결합이라 못 푼다.</p></div>
+    </section>
+
+    <!-- C -->
+    <section class="chapter" id="sec-c">
+      <div class="chapter-head">
+        <span class="big-letter">C</span>
+        <div><h2>활성화 함수</h2><span class="stage-tag">비선형성을 주입하는 장치</span></div>
+      </div>
+      <div class="prose"><p>활성화 함수의 진짜 역할은 <b>비선형성 주입</b>이다. 없으면 층을 아무리 쌓아도 하나의 선형 변환으로 축약되어 층을 쌓는 의미가 사라진다.</p></div>
+      <table class="kv-table">
+        <tr><th>함수</th><th>수식</th><th>출력 범위</th><th>특징</th></tr>
+        <tr><td>Step</td><td><code>1 if x ≥ 0 else 0</code></td><td class="num">{0, 1}</td><td>미분값이 항상 0 → <b>학습 불가</b>. 개념 설명용</td></tr>
+        <tr><td>Sigmoid</td><td><code>1 / (1 + e⁻ˣ)</code></td><td class="num">(0, 1)</td><td>확률로 해석 가능 → 이진 분류 출력층</td></tr>
+        <tr><td>ReLU</td><td><code>max(0, x)</code></td><td class="num">[0, ∞)</td><td>계산이 싸고 기울기 소실이 적음 → 은닉층 기본</td></tr>
+      </table>
+      <div class="code-card">
+        <div class="bar"><span class="fn">activations.py</span><span>벡터화가 포인트</span></div>
+        <pre><code><span class="tok-com"># 스칼라 하나만 처리 — 층에 뉴런 100개면 100번 호출해야 한다</span>
+<span class="tok-kw">def</span> <span class="tok-fn">step_function</span>(z):
+    <span class="tok-kw">return</span> <span class="tok-num">1</span> <span class="tok-kw">if</span> z &gt;= <span class="tok-num">0</span> <span class="tok-kw">else</span> <span class="tok-num">0</span>
+
+<span class="tok-com"># NumPy 배열 전체를 한 번에 — 층 전체를 1회 호출로 끝낸다</span>
+<span class="tok-kw">def</span> <span class="tok-fn">step</span>(x):     <span class="tok-kw">return</span> np.array(x &gt; <span class="tok-num">0</span>, dtype=<span class="tok-fn">int</span>)
+<span class="tok-kw">def</span> <span class="tok-fn">sigmoid</span>(x):  <span class="tok-kw">return</span> <span class="tok-num">1</span> / (<span class="tok-num">1</span> + np.exp(-x))
+<span class="tok-kw">def</span> <span class="tok-fn">relu</span>(x):     <span class="tok-kw">return</span> np.maximum(<span class="tok-num">0</span>, x)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">함정</span><p><code class="inline">np.maximum(0, x)</code>는 <b>두 배열을 원소별 비교</b>(ReLU는 이것), <code class="inline">np.max(x)</code>는 <b>배열 전체의 최댓값 하나</b>. 이름이 비슷해 가장 자주 틀린다.</p></div>
+    </section>
+
+    <!-- D -->
+    <section class="chapter" id="sec-d">
+      <div class="chapter-head">
+        <span class="big-letter">D</span>
+        <div><h2>인공신경망 학습</h2><span class="stage-tag">순전파 → 손실 → 역전파 → 경사하강</span></div>
+      </div>
+      <div class="pipeline">
+        <div class="step">순전파<br><span style="color:var(--ink-faint);">예측 생성</span></div><span class="arrow">→</span>
+        <div class="step">손실 계산<br><span style="color:var(--ink-faint);">정답과의 차이</span></div><span class="arrow">→</span>
+        <div class="step">역전파<br><span style="color:var(--ink-faint);">기울기 계산</span></div><span class="arrow">→</span>
+        <div class="step" style="border-color:var(--accent2);">가중치 수정<br><span style="color:var(--ink-faint);">경사하강법</span></div>
+      </div>
+      <div class="formula">w<sub>new</sub> = w<sub>old</sub> − η · <span class="frac"><span class="num">dL</span><span class="den">dw</span></span> &nbsp;&nbsp;·&nbsp;&nbsp; <span class="frac"><span class="num">dL</span><span class="den">dw</span></span> = <span class="frac"><span class="num">dL</span><span class="den">dy</span></span> × <span class="frac"><span class="num">dy</span><span class="den">dz</span></span> × <span class="frac"><span class="num">dz</span><span class="den">dw</span></span></div>
+      <p class="prose soft" style="max-width:70ch;margin-top:-8px;">기울기의 <b>반대 방향</b>으로 가야 손실이 줄기 때문에 부호가 <code class="inline">−</code>다. 오른쪽은 연쇄 법칙 — 역전파의 전부다.</p>
+
+      <table class="kv-table">
+        <tr><th>파라미터</th><th>너무 작으면</th><th>너무 크면</th></tr>
+        <tr><td><b>Epoch</b> 전체 데이터를 한 번 보는 사이클</td><td>과소적합 (Underfitting)</td><td>과적합 (Overfitting)</td></tr>
+        <tr><td><b>학습률 η</b> 한 번에 움직이는 정도</td><td>학습이 매우 느림</td><td>최적점을 지나쳐 발산</td></tr>
+      </table>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">train_single_neuron.py</span><span>Sigmoid + Binary Cross-Entropy</span></div>
+        <pre><code><span class="tok-kw">for</span> epoch <span class="tok-kw">in</span> <span class="tok-fn">range</span>(epochs):
+    z = X @ w + b                        <span class="tok-com"># 1. 순전파</span>
+    y_pred = sigmoid(z)
+
+    loss = binary_cross_entropy(y, y_pred)   <span class="tok-com"># 2. 손실</span>
+
+    error = y_pred - y                   <span class="tok-com"># 3. 기울기 ← 이게 왜 이렇게 간단할까?</span>
+    w_gradient = X.T @ error / sample_count
+    b_gradient = np.mean(error, axis=<span class="tok-num">0</span>)
+
+    w -= learning_rate * w_gradient      <span class="tok-com"># 4. 업데이트</span>
+    b -= learning_rate * b_gradient</code></pre>
+      </div>
+      <div class="callout">
+        <span class="label">왜 기울기가 그냥 y_pred − y 인가</span>
+        <ul>
+          <li>Sigmoid의 미분 <code class="inline">σ'(z) = σ(z)(1−σ(z))</code>와</li>
+          <li>BCE의 미분에 들어 있는 <code class="inline">1 / (y_pred(1−y_pred))</code>가</li>
+          <li><b>정확히 약분</b>되기 때문 → 그래서 두 함수는 항상 짝으로 쓰인다</li>
+          <li>다중 분류에서 <b>Softmax + Cross-Entropy</b>가 짝인 이유도 완전히 같다</li>
+        </ul>
+      </div>
+
+      <div class="takeaway"><span class="mark">가장 중요한 교훈</span><p>XOR은 단일 뉴런으로 학습하면 정확도가 <b>약 50%</b>에 머물고 손실 곡선이 평평하게 눕는다. <b>모델 구조가 문제에 맞지 않으면 데이터와 Epoch를 아무리 늘려도 해결되지 않는다.</b> 손실이 안 내려가면 학습률·Epoch가 아니라 <b>구조</b>를 먼저 의심할 것.</p></div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">train_multi_neuron.py</span><span>역전파 — 은닉층 기울기</span></div>
+        <pre><code><span class="tok-com"># 가중치는 반드시 '무작위' 초기화 (0으로 두면 학습 안 됨)</span>
+W1 = rng.normal(<span class="tok-num">0.0</span>, <span class="tok-num">1.0</span>, size=(input_count, hidden_size))
+
+Z1 = X @ W1 + b1;  Y1 = sigmoid(Z1)      <span class="tok-com"># 순전파: 입력 → 은닉</span>
+Z2 = Y1 @ W2 + b2; y_pred = sigmoid(Z2)  <span class="tok-com"># 순전파: 은닉 → 출력</span>
+
+dZ2 = (y_pred - y) / sample_count        <span class="tok-com"># 출력층 기울기</span>
+dW2 = Y1.T @ dZ2
+db2 = np.sum(dZ2, axis=<span class="tok-num">0</span>, keepdims=<span class="tok-fn">True</span>)
+
+dY1 = dZ2 @ W2.T                         <span class="tok-com"># 오차를 은닉층으로 되돌림</span>
+dZ1 = dY1 * Y1 * (<span class="tok-num">1</span> - Y1)                <span class="tok-com"># ← sigmoid 미분 σ(1−σ)</span>
+dW1 = X.T @ dZ1</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">함정 3가지</span><p>① 다층에서 가중치를 <b>0으로 초기화하면</b> 은닉 노드들이 똑같은 기울기를 받아 영원히 같이 움직인다(대칭성 문제). ② <code class="inline">dZ1</code>의 <code class="inline">Y1</code>은 <b>활성화를 통과한 뒤의 값</b>이지 <code class="inline">Z1</code>이 아니다. ③ <code class="inline">keepdims=True</code>를 빼면 shape이 어긋난다.</p></div>
+    </section>
+
+    <!-- E -->
+    <section class="chapter" id="sec-e">
+      <div class="chapter-head">
+        <span class="big-letter">E</span>
+        <div><h2>CNN · Feature Map</h2><span class="stage-tag">이미지를 펴지 않고 그대로 본다</span></div>
+      </div>
+      <div class="prose"><p>CNN은 이미지를 1차원으로 펴지 않고 <b>2D/3D 형태를 유지</b>한 채 처리해 주변 픽셀 간의 관계를 보존한다. 커널을 이미지 위에서 이동시키며 합성곱해 Feature Map을 만들고 — <b>커널 1개당 Feature Map 1개</b> — Pooling으로 크기를 줄여 연산량을 낮춘다.</p></div>
+
+      <div class="formula">H<sub>out</sub> = ⌊ (H + 2P − K) / S ⌋ + 1</div>
+      <table class="kv-table">
+        <tr><th>K</th><th>P</th><th>S</th><th>결과</th></tr>
+        <tr><td class="num">3</td><td class="num">1</td><td class="num">1</td><td><b>크기 유지</b> — CNN에서 가장 흔한 조합</td></tr>
+        <tr><td class="num">3</td><td class="num">0</td><td class="num">1</td><td>양옆 1픽셀씩 줄어듦</td></tr>
+        <tr><td class="num">2</td><td class="num">0</td><td class="num">2</td><td><b>정확히 절반</b> — MaxPool 표준</td></tr>
+      </table>
+
+      <div class="callout">
+        <span class="label">Feature Map 값의 의미</span>
+        <ul>
+          <li><b>큰 양수</b> — 필터가 찾는 패턴이 강하게 존재</li>
+          <li><b>0 근처</b> — 해당 특징이 거의 없음</li>
+          <li><b>큰 음수</b> — 필터 패턴과 <b>반대 방향</b>의 특징이 존재</li>
+          <li>즉 <b>부호가 방향 정보</b>를 담는다 → ReLU를 걸면 한쪽 방향 edge만 남는다</li>
+        </ul>
+      </div>
+
+      <div class="kernel-row">
+        <div class="kernel">
+          <div class="cap">세로 edge 검출 (dx)</div>
+          <div class="grid3">
+            <span class="neg">-1</span><span>0</span><span>1</span>
+            <span class="neg">-1</span><span class="center">0</span><span>1</span>
+            <span class="neg">-1</span><span>0</span><span>1</span>
+          </div>
+        </div>
+        <div class="kernel">
+          <div class="cap">가로 edge 검출 (dy)</div>
+          <div class="grid3">
+            <span class="neg">-1</span><span class="neg">-1</span><span class="neg">-1</span>
+            <span>0</span><span class="center">0</span><span>0</span>
+            <span>1</span><span>1</span><span>1</span>
+          </div>
+        </div>
+      </div>
+
+      <table class="kv-table">
+        <tr><th>일반 신경망</th><th>CNN에서는</th></tr>
+        <tr><td>가중치 <code>w</code></td><td><b>커널(필터) 각 칸의 값</b></td></tr>
+        <tr><td>편향 <code>b</code></td><td>약한 특징을 무시하거나 증폭시키는 값</td></tr>
+      </table>
+      <div class="takeaway"><span class="mark">POINT</span><p><code class="inline">bias = -0.2</code>는 "임계값 0.2"라는 뜻이고, <b>ReLU와 짝을 이룰 때만</b> 필터링 효과가 생긴다. ReLU 없이 bias만 빼면 전체가 어두워질 뿐이다. 그리고 입력은 <code class="inline">astype(np.float32) / 255.</code>로 정규화해야 가중합이 폭주하지 않는다.</p></div>
+    </section>
+
+    <!-- F -->
+    <section class="chapter" id="sec-f">
+      <div class="chapter-head">
+        <span class="big-letter">F</span>
+        <div><h2>MNIST CNN 실습</h2><span class="stage-tag">Dataset → DataLoader → 모델 → 학습 루프</span></div>
+      </div>
+      <div class="prose"><p><code class="inline">transforms.ToTensor()</code>가 두 가지를 자동으로 해준다 — <b>형태 변환</b> <code class="inline">(H,W,C) → (C,H,W)</code>와 <b>스케일링</b> <code class="inline">0~255 정수 → 0.0~1.0 float32</code>.</p></div>
+
+      <div class="compare">
+        <div class="box pos"><h4>Dataset</h4><ul><li>이미지 <b>1장 + 라벨 1개</b> 반환</li><li><code class="inline">train_dataset[0]</code></li></ul></div>
+        <div class="box pos"><h4>DataLoader</h4><ul><li>여러 장을 <b>Batch로 묶어</b> 반환</li><li>Batch 생성 · 순서 섞기 · 로딩 관리</li></ul></div>
+      </div>
+
+      <div class="prose"><p>모델 구조는 <code class="inline">1×28×28 → Conv(8) → Pool → Conv(16) → Pool → Flatten(784) → FC(64) → FC(10)</code>이다.</p></div>
+      <table class="kv-table">
+        <tr><th>Layer</th><th>계산</th><th>파라미터</th></tr>
+        <tr><td>conv1</td><td class="num">1×8×3×3 + 8</td><td class="num">80</td></tr>
+        <tr><td>conv2</td><td class="num">8×16×3×3 + 16</td><td class="num">1,168</td></tr>
+        <tr><td>fc1</td><td class="num">784×64 + 64</td><td class="num">50,240</td></tr>
+        <tr><td>fc2</td><td class="num">64×10 + 10</td><td class="num">650</td></tr>
+        <tr><td><b>합계</b></td><td></td><td class="num"><b>52,138</b></td></tr>
+      </table>
+      <div class="takeaway"><span class="mark">숫자가 말하는 것</span><p>Convolution은 파라미터가 <b>극히 적고</b>(80, 1168), <b>Fully Connected가 전체의 97%</b>를 차지한다. J장에서 Global Average Pooling으로 FC를 줄이는 이유가 바로 이것이다. 그리고 <code class="inline">16*7*7</code>은 <b>28 → Pool → 14 → Pool → 7</b>에서 나온 수 — 입력 크기가 바뀌면 반드시 다시 계산해야 한다.</p></div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">train_loop.py</span><span>학습 4종 세트 — 순서가 중요하다</span></div>
+        <pre><code>model.train()                          <span class="tok-com"># ① 학습 모드</span>
+<span class="tok-kw">for</span> images, labels <span class="tok-kw">in</span> data_loader:
+    images = images.to(device)         <span class="tok-com"># 텐서는 반환값을 재대입해야 한다</span>
+    labels = labels.to(device)
+
+    optimizer.zero_grad()              <span class="tok-com"># ② 이전 Batch의 Gradient 제거</span>
+    logits = model(images)             <span class="tok-com"># ③ 순전파</span>
+    loss = criterion(logits, labels)
+    loss.backward()                    <span class="tok-com"># ④ 역전파 → .grad 채움</span>
+    optimizer.step()                   <span class="tok-com"># ⑤ .grad로 파라미터 수정</span>
+
+    total_loss += loss.item() * images.size(<span class="tok-num">0</span>)   <span class="tok-com"># batch 평균 × 크기 = 합</span></code></pre>
+      </div>
+
+      <table class="kv-table">
+        <tr><th>빠뜨리면</th><th>무슨 일이 생기나</th></tr>
+        <tr><td><code>optimizer.zero_grad()</code></td><td>Gradient가 <b>누적</b>되어 파라미터가 폭주</td></tr>
+        <tr><td><code>loss.backward()</code></td><td>Gradient가 없어 <b>학습이 전혀 안 됨</b></td></tr>
+        <tr><td><code>optimizer.step()</code></td><td>Gradient는 있는데 <b>파라미터가 안 바뀜</b></td></tr>
+        <tr><td><code>model.train()/.eval()</code></td><td>Dropout·BatchNorm이 잘못된 모드로 동작</td></tr>
+      </table>
+
+      <div class="callout">
+        <span class="label">평가할 때는 두 가지가 모두 필요하다</span>
+        <ul>
+          <li><code class="inline">model.eval()</code> — Dropout·BatchNorm의 <b>동작 방식</b>을 바꾼다</li>
+          <li><code class="inline">torch.no_grad()</code> — <b>Gradient 그래프 생성을 막아</b> 메모리와 속도를 아낀다</li>
+          <li>둘은 서로 다른 일을 한다 — 하나만 하면 조용히 틀린 결과가 나온다</li>
+        </ul>
+      </div>
+      <div class="takeaway"><span class="mark">함정</span><p><code class="inline">nn.CrossEntropyLoss</code>에는 <b>Softmax를 거치지 않은 raw logit</b>을 넣는다. 내부에 <code class="inline">LogSoftmax + NLLLoss</code>가 이미 들어 있어 앞에 softmax를 붙이면 <b>이중 적용</b>이 된다. 확률은 <b>추론할 때만</b> <code class="inline">torch.softmax(logits, dim=1)</code>로 본다.</p></div>
+    </section>
+
+    <!-- G -->
+    <section class="chapter" id="sec-g">
+      <div class="chapter-head">
+        <span class="big-letter">G</span>
+        <div><h2>GPU 병렬 연산 — CuPy</h2><span class="stage-tag">NumPy와 문법은 같고 장치가 다르다</span></div>
+      </div>
+      <table class="kv-table">
+        <tr><th></th><th>NumPy</th><th>CuPy</th></tr>
+        <tr><td>실행 장치</td><td>CPU 코어 <b>6개</b></td><td>GPU 코어 <b>1024개</b> (Orin Nano)</td></tr>
+        <tr><td>데이터 위치</td><td>Host memory (RAM)</td><td>Device memory (VRAM)</td></tr>
+        <tr><td>잘하는 일</td><td>복잡한 제어 흐름, 순차 처리</td><td><b>단순 연산의 대규모 병렬 처리</b></td></tr>
+      </table>
+      <div class="takeaway"><span class="mark">Jetson 특이사항</span><p>Orin Nano는 CPU와 GPU가 <b>같은 메모리 칩을 공유</b>하는 통합 메모리(UMA) 구조다. 그럼에도 <b>논리적으로는 분리</b>되어 각자 관리하므로 <b>명시적 복사가 여전히 필요하다</b>. "같은 칩이니 그냥 되겠지"라고 생각하면 RuntimeError를 만난다.</p></div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">cupy_basics.py</span><span>필수 3줄 + 동기화</span></div>
+        <pre><code>x_gpu = cp.asarray(x_cpu)      <span class="tok-com"># CPU → GPU (올리고)</span>
+y_gpu = x_gpu ** <span class="tok-num">2</span>              <span class="tok-com"># GPU에서 연산</span>
+y_cpu = cp.asnumpy(y_gpu)      <span class="tok-com"># GPU → CPU (내리고)</span>
+
+<span class="tok-com"># 시간 측정에는 앞뒤로 동기화가 반드시 필요하다</span>
+cp.cuda.Stream.null.synchronize()
+start = time.perf_counter()
+result = gpu_function(x_gpu)
+cp.cuda.Stream.null.synchronize()
+elapsed = time.perf_counter() - start</code></pre>
+      </div>
+      <div class="callout">
+        <span class="label">동기화를 빼면 왜 안 되나</span>
+        <ul>
+          <li>GPU 연산은 <b>비동기</b>다 — CPU는 지시만 던지고 곧바로 다음 줄로 넘어간다</li>
+          <li>동기화 없이 재면 <b>"지시하는 데 걸린 시간"</b>만 측정되어 비현실적으로 빠른 값이 나온다</li>
+          <li>PyTorch에서의 대응 함수는 <code class="inline">torch.cuda.synchronize()</code></li>
+        </ul>
+      </div>
+
+      <h3 style="font-size:16px;margin:28px 0 8px;">핵심 — Convolution을 CuPy로 다시 쓰기</h3>
+      <div class="prose"><p>GPU 가속의 본질은 반복문을 없애는 게 아니라, <b>가장 안쪽의 픽셀 단위 반복을 배열 전체 연산으로 바꿔치기하는 것</b>이다.</p></div>
+      <table class="kv-table">
+        <tr><th></th><th>무엇을 순회하나</th><th>반복 횟수 (1280×720, 3×3)</th></tr>
+        <tr><td><code>convolution2d</code> (NumPy)</td><td><b>출력 픽셀</b></td><td class="num">921,600</td></tr>
+        <tr><td><code>convolution2d_cp</code> (CuPy)</td><td><b>커널 원소</b></td><td class="num">9</td></tr>
+      </table>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">convolution2d_cp.py</span><span>커널 원소를 순회하고 출력 배열 전체에 누적</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">convolution2d_cp</span>(image, kernel, bias=<span class="tok-num">0.0</span>, stride=<span class="tok-num">1</span>, padding=<span class="tok-num">0</span>):
+    kernel_height, kernel_width = kernel.shape
+
+    padded_image = cp.pad(image, ((padding,padding),(padding,padding)),
+                          mode=<span class="tok-str">"constant"</span>, constant_values=<span class="tok-num">0</span>)
+
+    output_height = (padded_image.shape[<span class="tok-num">0</span>] - kernel_height) // stride + <span class="tok-num">1</span>
+    output_width  = (padded_image.shape[<span class="tok-num">1</span>] - kernel_width)  // stride + <span class="tok-num">1</span>
+    output = cp.zeros((output_height, output_width), dtype=cp.float32)
+
+    <span class="tok-kw">for</span> kernel_y <span class="tok-kw">in</span> <span class="tok-fn">range</span>(kernel_height):        <span class="tok-com"># 3×3이면 단 9번</span>
+        <span class="tok-kw">for</span> kernel_x <span class="tok-kw">in</span> <span class="tok-fn">range</span>(kernel_width):
+            <span class="tok-com"># 모든 출력 위치의 대응 입력 픽셀을 한 번에 선택</span>
+            input_region = padded_image[
+                kernel_y : kernel_y + output_height * stride : stride,
+                kernel_x : kernel_x + output_width  * stride : stride,
+            ]
+            output += input_region * kernel[kernel_y, kernel_x]   <span class="tok-com"># GPU 병렬</span>
+
+    <span class="tok-kw">return</span> output + bias        <span class="tok-com"># bias는 루프 '밖'에서 한 번만!</span></code></pre>
+      </div>
+
+      <div class="callout">
+        <span class="label">슬라이스 경계는 이렇게 나온다</span>
+        <ul>
+          <li>NumPy 버전에서 출력 <code class="inline">(oy, ox)</code>가 보는 입력은 <code class="inline">padded[oy*stride + ky, ox*stride + kx]</code></li>
+          <li><code class="inline">(ky, kx)</code>를 고정하고 <code class="inline">oy</code>를 훑으면 행 인덱스는 <b>시작 ky, 간격 stride, 개수 output_height</b>인 등차수열</li>
+          <li>그래서 <code class="inline">ky : ky + output_height * stride : stride</code></li>
+          <li><code class="inline">stop</code>을 <code class="inline">padded.shape</code>로 잡으면 <code class="inline">stride &gt; 1</code>일 때 개수가 어긋난다 — <b>개수를 명시</b>할 것</li>
+        </ul>
+      </div>
+
+      <div class="takeaway"><span class="mark">⚠ 노트북 셀 331은 아직 동작하지 않습니다</span><p><code class="inline">linux-work</code> 브랜치의 <code class="inline">convolution2d_cp</code>는 <code class="inline">start_y = output_height * stride</code>로 되어 있어 <b><code class="inline">kernel_y</code>를 전혀 참조하지 않습니다.</b> 커널 원소가 바뀌어도 항상 같은 영역을 보게 되고, 슬라이스가 범위를 벗어나 빈 배열이 됩니다. 위 코드의 <code class="inline">input_region</code> 두 줄로 바꾸면 CPU 버전과 오차 <code class="inline">2.4e-07</code> 수준으로 일치합니다. (잔상 효과 <code class="inline">motion_trail_cp</code>는 정확히 맞게 작성되어 있습니다.)</p></div>
+
+      <div class="takeaway"><span class="mark">가장 흔한 실수</span><p><code class="inline">bias</code>를 루프 <b>안</b>에 넣으면 3×3 커널 기준 <b>9번 더해져</b> 출력 전체가 <code class="inline">bias × 8</code>만큼 어긋난다. 그리고 전송 비용을 잊지 말 것 — <b>한 번 올리고, 거기서 다 끝내고, 한 번 내린다.</b> 매 연산마다 왕복시키면 GPU를 쓰는 의미가 없다.</p></div>
+    </section>
+
+    <!-- H -->
+    <section class="chapter" id="sec-h">
+      <div class="chapter-head">
+        <span class="big-letter">H</span>
+        <div><h2>PyTorch · Device</h2><span class="stage-tag">GPU용 NumPy + 학습 엔진</span></div>
+      </div>
+      <div class="prose"><p>CuPy가 "GPU용 NumPy"라면 PyTorch는 "GPU용 NumPy + <b>자동 미분</b>"이다. Tensor 연산, autograd, nn Layer와 Loss, Optimizer, DataLoader, torchvision을 모두 제공한다.</p></div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">device.py</span><span>실무 표준 패턴</span></div>
+        <pre><code>device = torch.device(<span class="tok-str">"cuda"</span> <span class="tok-kw">if</span> torch.cuda.is_available() <span class="tok-kw">else</span> <span class="tok-str">"cpu"</span>)
+
+model  = model.to(device)     <span class="tok-com"># 모델은 제자리 이동 (관례상 재대입)</span>
+images = images.to(device)    <span class="tok-com"># 텐서는 새 객체 반환 → 재대입 필수!</span>
+labels = labels.to(device)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">가장 자주 만나는 에러</span><p><code class="inline">Expected all tensors to be on the same device...</code> — <b>모델은 GPU인데 데이터가 CPU</b>일 때 난다. 학습 루프에서 <code class="inline">.to(device)</code>가 필요한 곳은 <b>모델 1회 + images 매 배치 + labels 매 배치</b> 세 곳이다.<br><br>주의할 점 하나 — 이미 그 장치에 있는 텐서에 <code class="inline">.to()</code>를 부르면 복사 없이 <b>자기 자신을 반환</b>한다(<code class="inline">t.to("cpu") is t</code> → <code class="inline">True</code>). 그래서 CPU에서 테스트할 땐 재대입을 빼먹어도 멀쩡히 돌다가, GPU로 옮기는 순간 터진다.</p></div>
+      <table class="kv-table">
+        <tr><th>메서드</th><th>하는 일</th><th>언제</th></tr>
+        <tr><td><code>.item()</code></td><td>원소 1개 Tensor → Python 숫자</td><td>loss·정확도 기록</td></tr>
+        <tr><td><code>.detach()</code></td><td>자동 미분 그래프에서 분리</td><td>시각화 전</td></tr>
+        <tr><td><code>.cpu()</code></td><td>GPU → CPU</td><td>NumPy/matplotlib 전달 전</td></tr>
+        <tr><td><code>.unsqueeze(0)</code></td><td>Batch 차원 <b>추가</b></td><td>이미지 1장을 모델에 넣을 때</td></tr>
+        <tr><td><code>.squeeze(0)</code></td><td>채널 차원 <b>제거</b></td><td><code>plt.imshow</code>에 넣을 때</td></tr>
+        <tr><td><code>torch.flatten(x, start_dim=1)</code></td><td>Batch 보존 평탄화</td><td>Conv → FC 연결</td></tr>
+      </table>
+      <div class="takeaway"><span class="mark">함정</span><p><code class="inline">torch.flatten(x)</code>에서 <code class="inline">start_dim=1</code>을 빼면 <b>Batch 차원까지 뭉개진다</b> — <code class="inline">[64,16,7,7]</code>이 <code class="inline">[784]</code>가 아니라 <code class="inline">[50176]</code>이 된다. 0번 축은 언제나 Batch이므로 건드리지 않는다.</p></div>
+    </section>
+
+    <!-- I -->
+    <section class="chapter" id="sec-i">
+      <div class="chapter-head">
+        <span class="big-letter">I</span>
+        <div><h2>MNIST GPU 가속 학습</h2><span class="stage-tag">CPU 코드에서 딱 4가지만 바꾼다</span></div>
+      </div>
+      <table class="kv-table">
+        <tr><th>#</th><th>항목</th><th>CPU</th><th>GPU</th></tr>
+        <tr><td class="num">1</td><td>device</td><td><code>torch.device("cpu")</code></td><td><code>torch.device("cuda")</code></td></tr>
+        <tr><td class="num">2</td><td>동기화</td><td>불필요</td><td>측정 전후 <code>torch.cuda.synchronize()</code></td></tr>
+        <tr><td class="num">3</td><td>Warm-up</td><td>불필요</td><td>측정 전 더미 순전파 몇 번</td></tr>
+        <tr><td class="num">4</td><td>DataLoader</td><td>—</td><td><code>pin_memory=True</code></td></tr>
+      </table>
+      <div class="takeaway"><span class="mark">설계가 좋으면 코드를 안 고친다</span><p><code class="inline">train_one_epoch()</code>와 <code class="inline">evaluate()</code>는 <b>한 글자도 바꿀 필요가 없다.</b> 처음부터 <code class="inline">device</code>를 인자로 받아 <code class="inline">.to(device)</code>하도록 짰기 때문이다 — device를 인자로 빼는 이유가 바로 이것이다.</p></div>
+      <div class="callout">
+        <span class="label">GPU Warm-up이 필요한 이유</span>
+        <ul>
+          <li>GPU는 <b>첫 연산에서</b> CUDA Context 생성, cuDNN 초기화, 메모리 할당을 한다</li>
+          <li>이 시간이 측정에 섞이면 <b>첫 결과만 유독 느리게</b> 나온다</li>
+          <li>그래서 측정 전에 같은 형태의 연산을 <code class="inline">torch.zeros(...)</code>로 몇 번 미리 돌린다</li>
+        </ul>
+      </div>
+      <div class="takeaway"><span class="mark">기대치 조정</span><p>MNIST의 <code class="inline">SimpleCNN</code>은 파라미터가 5만 개뿐이라 <b>GPU 가속 효과가 생각보다 작을 수 있다</b>. 배치마다 CPU↔GPU 전송이 오히려 병목이 된다. GPU의 진가는 다음 장의 CIFAR-10처럼 <b>파라미터가 100만 개 이상</b>인 모델에서 드러난다.</p></div>
+    </section>
+
+    <!-- J -->
+    <section class="chapter" id="sec-j">
+      <div class="chapter-head">
+        <span class="big-letter">J</span>
+        <div><h2>CIFAR-10 이미지 분류</h2><span class="stage-tag">증강 · BatchNorm · GAP · Dropout</span></div>
+      </div>
+      <table class="kv-table">
+        <tr><th></th><th>MNIST</th><th>CIFAR-10</th></tr>
+        <tr><td>이미지</td><td><code>1×28×28</code> 흑백</td><td><code>3×32×32</code> <b>RGB</b></td></tr>
+        <tr><td>학습 / 테스트</td><td class="num">60,000 / 10,000</td><td class="num">50,000 / 10,000</td></tr>
+        <tr><td>배경</td><td>단순, 객체가 중앙</td><td><b>복잡, 위치·방향 다양</b></td></tr>
+        <tr><td>파라미터</td><td class="num">52,138</td><td class="num">1,148,874</td></tr>
+      </table>
+
+      <div class="compare">
+        <div class="box pos"><h4>데이터 증강 (Augmentation)</h4><ul><li>매번 조금씩 변형해 다양성 확보</li><li>과적합 완화</li><li><b>학습 데이터에만</b></li></ul></div>
+        <div class="box pos"><h4>정규화 (Normalization)</h4><ul><li>채널별 분포를 통일</li><li>Gradient·Optimizer 안정화</li><li><b>학습 + 테스트 모두</b></li></ul></div>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">transforms.py</span><span>⚠ Compose 순서가 중요하다</span></div>
+        <pre><code>train_transform = transforms.Compose([
+    transforms.RandomCrop(size=<span class="tok-num">32</span>, padding=<span class="tok-num">4</span>),      <span class="tok-com"># ① PIL 이미지에 동작</span>
+    transforms.RandomHorizontalFlip(p=<span class="tok-num">0.5</span>),         <span class="tok-com"># ② PIL 이미지에 동작</span>
+    transforms.ToTensor(),                            <span class="tok-com"># ③ Tensor로 변환</span>
+    transforms.Normalize(mean=CIFAR10_MEAN, std=CIFAR10_STD),   <span class="tok-com"># ④ Tensor에 동작</span>
+])
+
+test_transform = transforms.Compose([
+    transforms.ToTensor(),                            <span class="tok-com"># 증강 없음!</span>
+    transforms.Normalize(mean=CIFAR10_MEAN, std=CIFAR10_STD),
+])</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">함정</span><p>정규화를 거치면 픽셀 값이 <b>0~1이 아니라 약 −2.0 ~ 2.0</b>이 된다. 그대로 <code class="inline">plt.imshow</code>에 넣으면 "Clipping input data..." 경고가 뜬다. <b>역정규화</b>가 필요하다: <code class="inline">image * std + mean</code> → <code class="inline">.permute(1,2,0)</code> → <code class="inline">.clamp(0,1)</code>.</p></div>
+
+      <div class="prose"><p>구조는 <code class="inline">ConvBlock(3→64) → ConvBlock(64→128) → ConvBlock(128→256) → GAP → Dropout → FC(10)</code>이고, 각 <code class="inline">ConvBlock</code>은 <code class="inline">Conv → BN → ReLU → Conv → BN → ReLU → MaxPool</code>이다.</p></div>
+      <table class="kv-table">
+        <tr><th>채널</th><th>학습하는 특징</th></tr>
+        <tr><td class="num">64</td><td>비교적 단순한 색상과 경계</td></tr>
+        <tr><td class="num">128</td><td>질감과 부분적인 형태</td></tr>
+        <tr><td class="num">256</td><td>객체를 구분하기 위한 복잡한 특징</td></tr>
+      </table>
+
+      <table class="kv-table">
+        <tr><th>새 Layer</th><th>역할</th></tr>
+        <tr><td><code>BatchNorm2d</code></td><td>Conv 출력 분포를 조정해 <b>학습 안정화</b></td></tr>
+        <tr><td><code>AdaptiveAvgPool2d</code></td><td>공간 영역을 평균 하나로 압축 (<code>256×4×4 → 256×1×1</code>)</td></tr>
+        <tr><td><code>Dropout</code></td><td>일부 Feature를 무작위 비활성화 → <b>과적합 완화</b></td></tr>
+      </table>
+
+      <div class="callout">
+        <span class="label">Global Average Pooling의 위력</span>
+        <ul>
+          <li>GAP 없이 <code class="inline">256×4×4 = 4096</code>을 그대로 FC에 넣으면 <b>40,970개</b> 파라미터</li>
+          <li>GAP를 거치면 <code class="inline">256 → 10</code>이라 <b>2,570개</b> — <b>16배 감소</b></li>
+          <li>게다가 GAP 자체는 학습 파라미터가 <b>0개</b>다</li>
+        </ul>
+      </div>
+      <div class="takeaway"><span class="mark">bias=False의 이유</span><p><code class="inline">Conv + BatchNorm</code> 조합에서는 항상 <code class="inline">bias=False</code>다. BatchNorm이 평균을 빼는 순간 Conv의 편향이 <b>완전히 상쇄되어 사라지기</b> 때문에, 아무 효과 없는 파라미터를 두지 않는 것이다.</p></div>
+
+      <table class="kv-table">
+        <tr><th>학습 곡선 패턴</th><th>진단</th></tr>
+        <tr><td>Train / Test loss 모두 감소</td><td>정상 학습 중</td></tr>
+        <tr><td>Train loss ↓, <b>Test loss ↑</b></td><td><b>과적합</b> — 증강·Dropout·조기 종료</td></tr>
+        <tr><td>둘 다 높은 채로 정체</td><td><b>과소적합</b> — Epoch·모델 용량 부족</td></tr>
+        <tr><td>Loss가 튀거나 발산</td><td>학습률이 너무 큼</td></tr>
+      </table>
+      <div class="takeaway"><span class="mark">결과 해석</span><p>노트북은 <code class="inline">EPOCHS = 5</code>로 돌리기 때문에 <b>충분히 학습되지 않아 분류 실패 사례가 눈에 띈다</b> — 코드 오류가 아니라 의도된 결과다. 이 노트북의 목적은 성능이 아니라 <b>학습 파이프라인을 처음부터 끝까지 직접 만들어 보는 것</b>이다.</p></div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">checkpoint.py</span><span>MNIST와 달리 딕셔너리로 저장한다</span></div>
+        <pre><code>save_data = {
+    <span class="tok-str">"model_name"</span>: <span class="tok-str">"CIFAR10CNN"</span>,
+    <span class="tok-str">"model_state_dict"</span>: model.state_dict(),
+    <span class="tok-str">"optimizer_state_dict"</span>: optimizer.state_dict(),   <span class="tok-com"># 학습 재개용</span>
+    <span class="tok-str">"test_accuracy"</span>: test_accuracy_history[<span class="tok-num">-1</span>],
+    <span class="tok-str">"mean"</span>: CIFAR10_MEAN, <span class="tok-str">"std"</span>: CIFAR10_STD,       <span class="tok-com"># 추론 시 같은 전처리를 쓰려고</span>
+}
+torch.save(save_data, path)
+
+<span class="tok-com"># 불러올 때 딕셔너리에서 한 번 더 꺼낸다</span>
+state_dict = torch.load(path, map_location=<span class="tok-str">"cpu"</span>, weights_only=<span class="tok-fn">True</span>)
+loaded_model.load_state_dict(state_dict[<span class="tok-str">"model_state_dict"</span>])
+loaded_model.eval()</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">POINT</span><p><code class="inline">state_dict</code>는 <b>구조가 아니라 가중치만</b> 담는다 — 불러오기 전에 같은 클래스를 정의해 인스턴스를 만들어야 한다. 전처리 통계(<code class="inline">mean</code>/<code class="inline">std</code>)를 함께 저장하는 이유는, <b>추론 때 학습과 다른 전처리를 쓰면 성능이 무너지기</b> 때문이다.</p></div>
+    </section>
+
+    <footer class="page-end">
+      원본: <code class="inline">03_DL-and-GPU.ipynb</code> (<code class="inline">linux-work</code> 브랜치) · Physical AI Vision-LLM 융합 시청각 멀티모달 시스템 세션 3 정리<br>
+      파라미터 수(52,138 / 1,148,874)와 CuPy convolution 동치성은 코드로 검산했습니다.
+    </footer>
+  </main>
+</div>
+
+<script>
+  (function(){
+    var toggle = document.getElementById('tocToggle');
+    var nav = document.getElementById('tocNav');
+    if(toggle){
+      toggle.addEventListener('click', function(){
+        nav.classList.toggle('open');
+        toggle.textContent = nav.classList.contains('open') ? '목차 접기 ▴' : '목차 펼치기 ▾';
+      });
+    }
+    var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a'));
+    var sections = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+    function onScroll(){
+      var pos = window.scrollY + 120;
+      var activeIdx = 0;
+      for(var i=0;i<sections.length;i++){
+        if(sections[i] && sections[i].offsetTop <= pos) activeIdx = i;
+      }
+      links.forEach(function(a,i){ a.classList.toggle('active', i===activeIdx); });
+    }
+    document.addEventListener('scroll', onScroll, {passive:true});
+    onScroll();
+  })();
+</script>
+</body>
+</html>
