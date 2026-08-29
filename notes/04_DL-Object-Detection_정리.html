@@ -410,6 +410,10 @@
         <li><a href="#sec-h"><span class="letter">H</span>TensorRT 변환</a></li>
         <li><a href="#sec-i"><span class="letter">I</span>INT8 양자화</a></li>
       </ol>
+    <div class="group-label">04 · 정답 코드</div>
+      <ol>
+        <li><a href="#sec-j"><span class="letter">J</span>실습 정답 코드</a></li>
+      </ol>
     </nav>
   </aside>
 
@@ -1019,6 +1023,152 @@ raw_engine_path.write_bytes(raw_engine)</code></pre>
       </div>
 
       <div class="takeaway"><span class="mark">결과 해석</span><p>INT8 엔진으로도 실시간 탐지가 <b>약 30 FPS</b>로 나온다면 최적화 성공이다. 이는 모델의 상한이 30 FPS라서가 아니라 <b>카메라 파이프라인을 30 FPS로 설정했기 때문</b>이다. 순수 모델 속도 비교는 <code class="inline">trtexec</code>의 Throughput으로 <code class="inline">fp32 / fp16 / int8</code> 세 엔진을 나란히 놓고 봐야 한다.</p></div>
+    </section>
+
+    <!-- ================= J : ANSWER ================= -->
+    <section class="chapter" id="sec-j">
+      <div class="chapter-head">
+        <span class="big-letter">J</span>
+        <div><h2>실습 정답 코드</h2><span class="stage-tag">[ANSWER]_04_DL-Object-Detection.ipynb</span></div>
+      </div>
+      <div class="prose"><p>노트북의 <code class="inline">TODO</code> 셀에 대한 공식 정답입니다.</p></div>
+
+      <h3 style="font-size:16px;margin:26px 0 6px;">A. Color Segmentation → BBox <span style="color:var(--ink-faint);font-weight:400;">(셀 18 · 19 · 21 · 24)</span></h3>
+      <div class="code-card">
+        <div class="bar"><span class="fn">apple_bbox.py</span><span>마스크 → Contour → boundingRect</span></div>
+        <pre><code><span class="tok-com"># 1) Binary Mask — 빨강은 H가 원형이라 두 구간을 OR</span>
+apple_blur = cv2.GaussianBlur(apple, (<span class="tok-num">7</span>,<span class="tok-num">7</span>), <span class="tok-num">0</span>)
+apple_hsv  = cv2.cvtColor(apple_blur, cv2.COLOR_BGR2HSV)
+
+apple_mask1 = cv2.inRange(apple_hsv, red_lower1, red_upper1)
+apple_mask2 = cv2.inRange(apple_hsv, red_lower2, red_upper2)
+apple_mask  = cv2.bitwise_or(apple_mask1, apple_mask2)
+
+<span class="tok-com"># 2) Morphological Operation</span>
+kernel = np.ones((<span class="tok-num">5</span>, <span class="tok-num">5</span>), np.uint8)
+apple_mask = cv2.morphologyEx(apple_mask, cv2.MORPH_OPEN,  kernel)   <span class="tok-com"># 작은 noise 제거</span>
+apple_mask = cv2.morphologyEx(apple_mask, cv2.MORPH_CLOSE, kernel)   <span class="tok-com"># 끊어진 영역 연결</span>
+
+<span class="tok-com"># 3) Contour 추출 → 가장 큰 것 하나만</span>
+contours, _ = cv2.findContours(apple_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+<span class="tok-kw">if</span> <span class="tok-fn">len</span>(contours) &gt; <span class="tok-num">0</span>:
+    largest_contour = <span class="tok-fn">max</span>(contours, key=cv2.contourArea)
+
+    <span class="tok-com"># 반투명 초록 overlay</span>
+    largest_mask = np.zeros_like(apple_mask)
+    cv2.drawContours(largest_mask, [largest_contour], <span class="tok-num">-1</span>, <span class="tok-num">255</span>, thickness=cv2.FILLED)
+
+    mask_color = np.zeros_like(final_img)
+    mask_color[:, :, <span class="tok-num">1</span>] = largest_mask          <span class="tok-com"># G 채널에만 마스크</span>
+    final_img = cv2.addWeighted(final_img, <span class="tok-num">1.0</span>, mask_color, <span class="tok-num">0.35</span>, <span class="tok-num">0</span>)
+
+    cv2.drawContours(final_img, [largest_contour], <span class="tok-num">-1</span>, (<span class="tok-num">0</span>,<span class="tok-num">255</span>,<span class="tok-num">0</span>), <span class="tok-num">2</span>)
+
+<span class="tok-com"># 4) BBox — boundingRect는 (x, y, w, h)를 반환</span>
+x, y, w, h = cv2.boundingRect(largest_contour)
+
+<span class="tok-com"># 5) cv2.rectangle이 쓰는 (x1,y1)-(x2,y2)로 변환</span>
+x1, y1 = x, y
+x2, y2 = x + w, y + h
+draw_bbox(apple_rgb, (x1, y1), (x2, y2), (<span class="tok-num">0</span>,<span class="tok-num">255</span>,<span class="tok-num">0</span>), txt=<span class="tok-str">"Apple, 0.98"</span>)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">POINT</span><p><code class="inline">mask_color[:, :, 1] = largest_mask</code> — 3채널 이미지의 <b>G 채널에만</b> 마스크를 넣어 초록 overlay를 만듭니다. <code class="inline">cv2.addWeighted(src1, α, src2, β, γ)</code>는 <code class="inline">src1×α + src2×β + γ</code>를 계산하므로 <code class="inline">α=1.0, β=0.35</code>면 원본 위에 35% 농도로 덧씌워집니다.</p></div>
+
+      <h3 style="font-size:16px;margin:30px 0 6px;">B. 좌표 변환 · IoU <span style="color:var(--ink-faint);font-weight:400;">(셀 30)</span></h3>
+      <div class="code-card">
+        <div class="bar"><span class="fn">iou.py</span><span>ZeroDivisionError 처리까지</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">convert_bbox_coord</span>(bbox):
+    x, y, w, h = bbox
+    <span class="tok-kw">return</span> (x, y, x + w, y + h)
+
+
+<span class="tok-kw">def</span> <span class="tok-fn">calculate_iou</span>(bbox_a, bbox_b):
+    xa_1, ya_1, xa_2, ya_2 = bbox_a
+    xb_1, yb_1, xb_2, yb_2 = bbox_b
+
+    intersection_x1 = <span class="tok-fn">max</span>(xa_1, xb_1)
+    intersection_y1 = <span class="tok-fn">max</span>(ya_1, yb_1)
+    intersection_x2 = <span class="tok-fn">min</span>(xa_2, xb_2)
+    intersection_y2 = <span class="tok-fn">min</span>(ya_2, yb_2)
+
+    intersection_width  = <span class="tok-fn">max</span>(<span class="tok-num">0</span>, intersection_x2 - intersection_x1)
+    intersection_height = <span class="tok-fn">max</span>(<span class="tok-num">0</span>, intersection_y2 - intersection_y1)
+    intersection_area   = intersection_width * intersection_height
+
+    area_a = (xa_2 - xa_1) * (ya_2 - ya_1)
+    area_b = (xb_2 - xb_1) * (yb_2 - yb_1)
+    union_area = area_a + area_b - intersection_area
+
+    <span class="tok-kw">if</span> union_area == <span class="tok-num">0</span>:
+        <span class="tok-kw">return</span> <span class="tok-num">0.0</span>
+
+    <span class="tok-kw">return</span> intersection_area / union_area</code></pre>
+      </div>
+
+      <h3 style="font-size:16px;margin:30px 0 6px;">C. NMS <span style="color:var(--ink-faint);font-weight:400;">(셀 51 · 52)</span></h3>
+      <div class="code-card">
+        <div class="bar"><span class="fn">prune_low_conf.py</span><span>Confidence Thresholding</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">prune_low_conf</span>(boxes, scores, conf_threshold=<span class="tok-num">0.5</span>):
+    pruned_boxes = []
+    pruned_scores = []
+
+    <span class="tok-kw">for</span> box, score <span class="tok-kw">in</span> <span class="tok-fn">zip</span>(boxes, scores):
+        <span class="tok-kw">if</span> score &gt;= conf_threshold:
+            pruned_boxes.append(box)
+            pruned_scores.append(score)
+
+    <span class="tok-kw">return</span> pruned_boxes, pruned_scores</code></pre>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">apply_nms.py</span><span>공식 정답 — NumPy Boolean 인덱싱으로 한 번에 거른다</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">apply_nms</span>(boxes, scores, iou_threshold=<span class="tok-num">0.5</span>):
+    boxes  = np.array(boxes,  dtype=np.float32)
+    scores = np.array(scores, dtype=np.float32)
+
+    <span class="tok-com"># Confidence Score가 높은 순서대로 index 정렬 (argsort는 오름차순이라 뒤집는다)</span>
+    sorted_indices = np.argsort(scores)[::<span class="tok-num">-1</span>]
+
+    keep_indices = []
+
+    <span class="tok-kw">while</span> <span class="tok-fn">len</span>(sorted_indices) &gt; <span class="tok-num">0</span>:
+        <span class="tok-com"># 현재 가장 높은 Confidence Score를 가진 박스 선택</span>
+        current_index = sorted_indices[<span class="tok-num">0</span>]
+        keep_indices.append(current_index)
+
+        <span class="tok-kw">if</span> <span class="tok-fn">len</span>(sorted_indices) == <span class="tok-num">1</span>:
+            <span class="tok-kw">break</span>
+
+        remaining_indices = sorted_indices[<span class="tok-num">1</span>:]
+        remaining_boxes   = boxes[remaining_indices]
+
+        <span class="tok-com"># 선택된 박스와 나머지 박스들의 IoU 계산</span>
+        iou_values = []
+        <span class="tok-kw">for</span> remaining_box <span class="tok-kw">in</span> remaining_boxes:
+            iou_values.append(calculate_iou(boxes[current_index], remaining_box))
+        iou_values = np.array(iou_values)
+
+        <span class="tok-com"># IoU가 Threshold 이하인 박스만 유지 ← Boolean 인덱싱</span>
+        sorted_indices = remaining_indices[iou_values &lt;= iou_threshold]
+
+    nms_boxes  = boxes[keep_indices].astype(<span class="tok-fn">int</span>).tolist()
+    nms_scores = scores[keep_indices].tolist()
+
+    <span class="tok-kw">return</span> nms_boxes, nms_scores</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">코드 읽는 법</span><p>핵심은 마지막에서 두 번째 줄입니다. <code class="inline">remaining_indices[iou_values &lt;= iou_threshold]</code> — <b>Boolean 배열로 인덱싱</b>해 조건을 만족하는 인덱스만 한 번에 남깁니다(01 세션의 Boolean 마스크가 여기 쓰입니다). 반복문으로 하나씩 지우는 것보다 짧고 빠릅니다.<br><br>이 구현은 <code class="inline">cv2.dnn.NMSBoxes</code>와 <b>동일한 결과</b>를 냅니다(시드 4개로 확인). 다만 정답 버전은 <code class="inline">boxes</code>를 <code class="inline">np.array</code>로 바꾸므로 <b>반환값이 리스트의 리스트</b>가 되고, 좌표가 <code class="inline">int</code>로 잘립니다.</p></div>
+
+      <h3 style="font-size:16px;margin:30px 0 6px;">Section Project</h3>
+      <div class="callout">
+        <span class="label">신호등 색 판단 (정답 노트북에도 비어 있음)</span>
+        <ul>
+          <li><code class="inline">src/videos/section4_project_traffic.mp4</code>를 <code class="inline">cv2.VideoCapture</code>로 읽는다</li>
+          <li>YOLO <code class="inline">classes=[9]</code>(traffic light)로 탐지 → <code class="inline">boundingRect</code> 영역을 crop</li>
+          <li>crop된 ROI를 HSV로 바꿔 빨강·노랑·초록 <code class="inline">inRange</code> 마스크의 <b>픽셀 수를 비교</b>해 가장 많은 색을 선택</li>
+          <li><code class="inline">cv2.putText</code>로 프레임 위에 현재 신호 상태를 표시</li>
+          <li>06 세션에서는 같은 문제를 <b>Gemma 멀티모달</b>로 다시 풉니다 — ROI 이미지를 그대로 LLM에 넘겨 색을 판단시킵니다</li>
+        </ul>
+      </div>
     </section>
 
     <footer class="page-end">

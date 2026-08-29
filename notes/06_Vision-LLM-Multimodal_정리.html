@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vision-LLM 멀티모달 실습 노트</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;display=swap">
+
+<style>
+  :root{
+    --bg:#F1F3F1;
+    --surface:#FFFFFF;
+    --surface-2:#E7EBE8;
+    --surface-3:#DCE2DE;
+    --ink:#14181A;
+    --ink-soft:#55605C;
+    --ink-faint:#8A948F;
+    --border:#D5DBD7;
+    --accent:#C8631F;
+    --accent-soft:#F1E0CE;
+    --accent-ink:#FFFFFF;
+    --accent2:#227373;
+    --accent2-soft:#DCEAEA;
+    --red:#B23A32;
+    --code-kw:#8B4A9C;
+    --code-str:#2E7D46;
+    --code-com:#8A948F;
+    --code-fn:#1D6FB8;
+    --code-num:#B2622E;
+    --shadow: 0 1px 2px rgba(20,24,26,.06), 0 8px 24px -12px rgba(20,24,26,.18);
+    --radius: 10px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#14181A;
+      --surface:#1B2023;
+      --surface-2:#20272A;
+      --surface-3:#283130;
+      --ink:#E8EDE9;
+      --ink-soft:#9AA8A2;
+      --ink-faint:#657069;
+      --border:#313B38;
+      --accent:#E39150;
+      --accent-soft:#3A2A1B;
+      --accent-ink:#1A1006;
+      --accent2:#5FC2C0;
+      --accent2-soft:#17302F;
+      --red:#E07B72;
+      --code-kw:#C892D8;
+      --code-str:#7FCB93;
+      --code-com:#7C8983;
+      --code-fn:#7EB6E8;
+      --code-num:#E3A374;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14181A;
+    --surface:#1B2023;
+    --surface-2:#20272A;
+    --surface-3:#283130;
+    --ink:#E8EDE9;
+    --ink-soft:#9AA8A2;
+    --ink-faint:#657069;
+    --border:#313B38;
+    --accent:#E39150;
+    --accent-soft:#3A2A1B;
+    --accent-ink:#1A1006;
+    --accent2:#5FC2C0;
+    --accent2-soft:#17302F;
+    --red:#E07B72;
+    --code-kw:#C892D8;
+    --code-str:#7FCB93;
+    --code-com:#7C8983;
+    --code-fn:#7EB6E8;
+    --code-num:#E3A374;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"IBM Plex Sans","IBM Plex Sans KR",-apple-system,sans-serif;
+    font-size:16px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  a{ color:var(--accent2); text-decoration-thickness: 1.5px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, summary:focus-visible{
+    outline: 2.5px solid var(--accent2); outline-offset: 2px; border-radius:4px;
+  }
+
+  h1,h2,h3,h4{
+    font-family:"IBM Plex Sans Condensed","IBM Plex Sans KR",sans-serif;
+    font-weight:700;
+    text-wrap:balance;
+    margin:0;
+    letter-spacing:.1px;
+  }
+
+  .layout{
+    display:grid;
+    grid-template-columns: 250px minmax(0,1fr);
+    max-width:1180px;
+    margin:0 auto;
+    align-items:start;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+    padding:28px 14px 28px 20px;
+    border-right:1px solid var(--border);
+    scrollbar-width:thin;
+  }
+  .brand{
+    display:block;
+    font-family:"IBM Plex Sans Condensed",sans-serif;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-bottom:4px;
+  }
+  .brand strong{
+    display:block;
+    font-size:19px;
+    letter-spacing:0;
+    text-transform:none;
+    color:var(--ink);
+    margin-top:6px;
+    line-height:1.25;
+  }
+  nav.toc{ margin-top:26px; }
+  nav.toc .group-label{
+    font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--ink-faint); font-weight:600; padding:0 10px; margin:18px 0 6px;
+  }
+  nav.toc .group-label:first-child{ margin-top:0; }
+  nav.toc ol{ list-style:none; margin:0; padding:0; counter-reset:none; }
+  nav.toc a{
+    display:flex; align-items:baseline; gap:10px;
+    padding:6px 10px; border-radius:7px;
+    color:var(--ink-soft); text-decoration:none; font-size:14.5px;
+    transition:background .12s ease, color .12s ease;
+  }
+  nav.toc a:hover{ background:var(--surface-2); color:var(--ink); }
+  nav.toc a .letter{
+    font-family:"IBM Plex Mono",monospace; font-size:12.5px; font-weight:600;
+    color:var(--accent); width:1.1em; flex:none;
+  }
+  nav.toc a.active{ background:var(--accent-soft); color:var(--ink); }
+  nav.toc a.active .letter{ color:var(--accent); }
+
+  /* ---------- Main ---------- */
+  main{ padding:56px 44px 120px; min-width:0; }
+
+  header.hero{ max-width:660px; margin-bottom:54px; }
+  .eyebrow{
+    font-family:"IBM Plex Sans Condensed",sans-serif;
+    font-size:12.5px; letter-spacing:.11em; text-transform:uppercase;
+    color:var(--accent); font-weight:600; margin-bottom:14px; display:block;
+  }
+  header.hero h1{ font-size:38px; line-height:1.15; margin-bottom:16px; }
+  header.hero .sub{ color:var(--ink-soft); font-size:16.5px; max-width:58ch; }
+
+  .stage-row{
+    display:flex; flex-wrap:wrap; gap:10px; margin-top:26px;
+  }
+  .stage-chip{
+    display:flex; align-items:center; gap:8px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:999px; padding:7px 14px 7px 10px; font-size:13.5px; color:var(--ink-soft);
+  }
+  .stage-chip b{ color:var(--ink); font-weight:600; }
+  .stage-chip .n{
+    width:20px; height:20px; border-radius:50%; background:var(--accent2-soft); color:var(--accent2);
+    display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:700;
+    font-family:"IBM Plex Mono",monospace;
+  }
+
+  section.chapter{
+    padding-top:52px; margin-top:6px; border-top:1px solid var(--border);
+    scroll-margin-top: 20px;
+  }
+  section.chapter:first-of-type{ border-top:none; padding-top:0; }
+
+  .chapter-head{ display:flex; gap:18px; align-items:flex-start; margin-bottom:22px; }
+  .chapter-head .big-letter{
+    font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700;
+    font-size:44px; line-height:1; color:var(--accent2); flex:none;
+    min-width:.9em;
+  }
+  .chapter-head h2{ font-size:25px; padding-top:5px; }
+  .chapter-head .stage-tag{
+    display:inline-block; margin-top:8px;
+    font-size:11.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:600;
+    color:var(--ink-faint);
+  }
+
+  .prose{ max-width:70ch; }
+  .prose p{ margin:0 0 14px; color:var(--ink); }
+  .prose p.soft{ color:var(--ink-soft); }
+
+  .callout{
+    background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent2);
+    border-radius:8px; padding:16px 20px; margin:18px 0 22px; max-width:70ch;
+    box-shadow:var(--shadow);
+  }
+  .callout .label{
+    font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
+    color:var(--accent2); margin-bottom:8px; display:block;
+  }
+  .callout ul{ margin:0; padding-left:20px; }
+  .callout li{ margin-bottom:6px; color:var(--ink); }
+  .callout li:last-child{ margin-bottom:0; }
+  .callout li .k{ color:var(--ink-soft); }
+
+  .takeaway{
+    display:flex; gap:12px; align-items:flex-start;
+    background:var(--accent-soft); border-radius:8px; padding:14px 18px;
+    margin-top:22px; max-width:70ch;
+  }
+  .takeaway .mark{
+    font-family:"IBM Plex Mono",monospace; font-weight:700; color:var(--accent); font-size:13px;
+    flex:none; margin-top:2px;
+  }
+  .takeaway p{ margin:0; color:var(--ink); font-size:14.5px; }
+
+  /* formula */
+  .formula{
+    font-family:"IBM Plex Mono",monospace; background:var(--surface-2);
+    border:1px solid var(--border); border-radius:8px;
+    padding:16px 22px; margin:16px 0; max-width:70ch;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    font-size:15.5px; overflow-x:auto;
+  }
+  .formula .frac{
+    display:inline-flex; flex-direction:column; align-items:center; vertical-align:middle;
+    margin:0 3px; line-height:1.3;
+  }
+  .formula .frac .num{ border-bottom:1.4px solid currentColor; padding:0 4px 1px; }
+  .formula .frac .den{ padding:1px 4px 0; }
+  .formula sup{ font-size:.7em; }
+
+  /* code card */
+  .code-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    margin:16px 0 22px; overflow:hidden; box-shadow:var(--shadow);
+    max-width: 100%;
+  }
+  .code-card .bar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:9px 16px; background:var(--surface-2); border-bottom:1px solid var(--border);
+    font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-soft);
+  }
+  .code-card .bar .fn{ color:var(--ink); font-weight:600; }
+  .code-card pre{
+    margin:0; padding:16px 18px; overflow-x:auto;
+    font-family:"IBM Plex Mono",monospace; font-size:13.3px; line-height:1.62;
+  }
+  .code-card code{ color:var(--ink); }
+  .tok-kw{ color:var(--code-kw); }
+  .tok-str{ color:var(--code-str); }
+  .tok-com{ color:var(--code-com); font-style:italic; }
+  .tok-fn{ color:var(--code-fn); }
+  .tok-num{ color:var(--code-num); }
+
+  .kv-table{ width:100%; border-collapse:collapse; margin:14px 0 20px; max-width:70ch; font-size:14px; }
+  .kv-table th, .kv-table td{
+    text-align:left; padding:8px 12px; border-bottom:1px solid var(--border);
+  }
+  .kv-table th{ color:var(--ink-faint); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.05em; }
+  .kv-table td code{ font-family:"IBM Plex Mono",monospace; font-size:12.8px; background:var(--surface-2); padding:1px 5px; border-radius:4px; }
+  .kv-table td.num{ font-variant-numeric: tabular-nums; }
+
+  .compare{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:16px 0 22px; max-width:70ch; }
+  .compare .box{ background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
+  .compare .box h4{ font-size:14px; margin-bottom:8px; color:var(--ink); }
+  .compare .box.pos{ border-left:3px solid var(--accent2); }
+  .compare .box.neg{ border-left:3px solid var(--red); }
+  .compare ul{ margin:0; padding-left:18px; font-size:13.6px; color:var(--ink-soft); }
+  .compare li{ margin-bottom:4px; }
+
+  /* kernel grid visual */
+  .kernel-row{ display:flex; gap:28px; flex-wrap:wrap; margin:18px 0 22px; }
+  .kernel{ text-align:center; }
+  .kernel .cap{ font-size:12.5px; color:var(--ink-soft); margin-bottom:8px; }
+  .kernel .grid3{
+    display:grid; grid-template-columns:repeat(3,34px); grid-template-rows:repeat(3,34px);
+    gap:3px; background:var(--border); border:1px solid var(--border); border-radius:6px; overflow:hidden;
+  }
+  .kernel .grid3 span{
+    background:var(--surface); display:flex; align-items:center; justify-content:center;
+    font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--ink);
+  }
+  .kernel .grid3 span.center{ background:var(--accent-soft); color:var(--accent); font-weight:700; }
+  .kernel .grid3 span.neg{ color:var(--red); }
+
+  /* HSV wheel */
+  .hsv-wrap{ display:flex; gap:32px; align-items:center; flex-wrap:wrap; margin:18px 0 24px; }
+  .hsv-wrap svg{ flex:none; }
+  .hsv-legend{ font-size:13.6px; color:var(--ink-soft); max-width:34ch; }
+  .hsv-legend div{ margin-bottom:6px; }
+  .hsv-legend b{ color:var(--ink); }
+
+  .pipeline{
+    display:flex; align-items:center; flex-wrap:wrap; gap:0; margin:18px 0 24px; max-width:70ch;
+  }
+  .pipeline .step{
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:9px 14px; font-size:13px; color:var(--ink); white-space:nowrap;
+  }
+  .pipeline .arrow{ color:var(--ink-faint); padding:0 8px; font-size:15px; }
+
+  footer.page-end{
+    max-width:70ch; margin-top:64px; padding-top:26px; border-top:1px solid var(--border);
+    color:var(--ink-faint); font-size:13px;
+  }
+
+  code.inline{
+    font-family:"IBM Plex Mono",monospace; background:var(--surface-2);
+    padding:1.5px 6px; border-radius:5px; font-size:.88em; color:var(--ink);
+  }
+
+  .mobile-toc-toggle{ display:none; }
+
+  @media (max-width: 900px){
+    .layout{ grid-template-columns: 1fr; }
+    .sidebar{
+      position:static; height:auto; border-right:none; border-bottom:1px solid var(--border);
+      padding:16px 20px;
+    }
+    nav.toc{ display:none; margin-top:14px; }
+    nav.toc.open{ display:block; }
+    .mobile-toc-toggle{
+      display:flex; align-items:center; gap:8px; width:100%;
+      background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
+      padding:10px 14px; color:var(--ink); font-size:13.5px; font-weight:600;
+      font-family:"IBM Plex Sans Condensed",sans-serif; letter-spacing:.03em;
+    }
+    main{ padding:38px 20px 90px; }
+    .compare{ grid-template-columns:1fr; }
+    header.hero h1{ font-size:30px; }
+  }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; scroll-behavior:auto !important; } }
+
+  html{ scroll-behavior:smooth; }
+
+  /* ---------- Print (PDF로 저장 시) ---------- */
+  @media print{
+    :root{
+      --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F3F4F2; --surface-3:#EAEDEA;
+      --ink:#14181A; --ink-soft:#4A5450; --ink-faint:#78827D; --border:#CBD2CD;
+      --shadow:none;
+    }
+    * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body{ font-size:12.5px; }
+    .layout{ display:block; max-width:none; }
+    .sidebar{ display:none; }
+    main{ padding:0 6mm; }
+    header.hero{ margin-bottom:30px; }
+    .stage-chip{ break-inside:avoid; }
+    section.chapter{
+      border-top:1px solid var(--border);
+      break-before:page; padding-top:24px;
+    }
+    section.chapter:first-of-type{ break-before:avoid; }
+    .code-card, .callout, .compare, .kv-table, .takeaway, .kernel-row, .hsv-wrap, .formula, .pipeline{
+      break-inside:avoid;
+    }
+    a{ color:var(--ink); text-decoration:none; }
+    .code-card pre{ white-space:pre-wrap; word-break:break-word; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <span class="brand">Study Notes<strong>Vision-LLM<br>멀티모달 시스템</strong></span>
+    <button class="mobile-toc-toggle" id="tocToggle" type="button">목차 펼치기 ▾</button>
+    <nav class="toc" id="tocNav">
+      <div class="group-label">01 · 텍스트로 잇기</div>
+      <ol>
+        <li><a href="#sec-a"><span class="letter">A</span>Vision-to-Text</a></li>
+        <li><a href="#sec-b"><span class="letter">B</span>프로세스 분리</a></li>
+      </ol>
+      <div class="group-label">02 · 이미지로 잇기</div>
+      <ol>
+        <li><a href="#sec-c"><span class="letter">C</span>Image 멀티모달</a></li>
+        <li><a href="#sec-d"><span class="letter">D</span>ROI 전달</a></li>
+      </ol>
+      <div class="group-label">03 · 음성으로 잇기</div>
+      <ol>
+        <li><a href="#sec-e"><span class="letter">E</span>STT · Whisper.cpp</a></li>
+        <li><a href="#sec-f"><span class="letter">F</span>TTS · Piper</a></li>
+      </ol>
+    </nav>
+  </aside>
+
+  <main>
+    <header class="hero">
+      <span class="eyebrow">06-Vision_LLM_Multimodal_Systems.ipynb 기반 정리</span>
+      <h1>Vision-LLM 융합 멀티모달 시스템</h1>
+      <p class="sub">YOLO가 본 것을 Gemma가 말하게 만드는 과정입니다. 탐지 결과를 JSON으로 정리해 자연어로 넘기는 것에서 시작해,
+      이미지 자체를 넘기는 멀티모달로 확장하고, 마지막에 음성 입출력을 붙여 전체 상호작용 루프를 완성합니다.</p>
+      <div class="stage-row">
+        <div class="stage-chip"><span class="n">1</span> <b>Vision → Text</b>&nbsp;JSON · 자연어 · Context</div>
+        <div class="stage-chip"><span class="n">2</span> <b>Vision → Image</b>&nbsp;mmproj · base64 · ROI</div>
+        <div class="stage-chip"><span class="n">3</span> <b>음성</b>&nbsp;Whisper · Piper</div>
+      </div>
+    </header>
+
+    <section class="chapter" id="sec-a">
+      <div class="chapter-head">
+        <span class="big-letter">A</span>
+        <div><h2>Vision-to-Text</h2><span class="stage-tag">탐지 결과를 LLM이 읽을 문장으로</span></div>
+      </div>
+      <div class="compare">
+        <div class="box pos"><h4>Structured Output</h4><ul><li>BBox · Class · Confidence</li><li>정해진 형식의 정보</li><li><b>프로그램이</b> 처리하기 쉬움</li></ul></div>
+        <div class="box pos"><h4>Natural Language</h4><ul><li>사람이 이해할 수 있는 문장</li><li><b>LLM이</b> 해석하기 쉬움</li></ul></div>
+      </div>
+      <div class="pipeline">
+        <div class="step">YOLO<br><span style="color:var(--ink-faint);">boxes.xyxy/cls/conf</span></div><span class="arrow">→</span>
+        <div class="step">Dictionary</div><span class="arrow">→</span>
+        <div class="step">JSON 파일</div><span class="arrow">→</span>
+        <div class="step">자연어 문장</div><span class="arrow">→</span>
+        <div class="step" style="border-color:var(--accent2);">Gemma<br><span style="color:var(--ink-faint);">Context</span></div>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">yolo_to_json.py</span><span>탐지 결과 → Dictionary → JSON</span></div>
+        <pre><code>model = YOLO(<span class="tok-str">"src/models/YOLO/yolo11n_int8.engine"</span>)   <span class="tok-com"># 04에서 만든 INT8 엔진</span>
+
+image = cv2.imread(<span class="tok-str">"src/images/city.png"</span>)
+height, width = image.shape[:<span class="tok-num">2</span>]
+
+results = model.predict(source=image, conf=<span class="tok-num">0.25</span>, iou=<span class="tok-num">0.5</span>, verbose=<span class="tok-fn">False</span>)
+result = results[<span class="tok-num">0</span>]
+
+objects = []
+
+<span class="tok-kw">for</span> box <span class="tok-kw">in</span> result.boxes:
+    class_id   = <span class="tok-fn">int</span>(box.cls[<span class="tok-num">0</span>].item())
+    confidence = <span class="tok-fn">float</span>(box.conf[<span class="tok-num">0</span>].item())
+    x1, y1, x2, y2 = box.xyxy[<span class="tok-num">0</span>].cpu().tolist()      <span class="tok-com"># GPU 텐서 → CPU → 리스트</span>
+
+    objects.append({
+        <span class="tok-str">"class"</span>: result.names[class_id],              <span class="tok-com"># 인덱스 → 클래스 이름</span>
+        <span class="tok-str">"confidence"</span>: <span class="tok-fn">round</span>(confidence, <span class="tok-num">3</span>),
+        <span class="tok-str">"bbox"</span>: {<span class="tok-str">"x1"</span>: <span class="tok-fn">int</span>(x1), <span class="tok-str">"y1"</span>: <span class="tok-fn">int</span>(y1),
+                 <span class="tok-str">"x2"</span>: <span class="tok-fn">int</span>(x2), <span class="tok-str">"y2"</span>: <span class="tok-fn">int</span>(y2)},
+    })
+
+vision_dict = {<span class="tok-str">"image_width"</span>: width, <span class="tok-str">"image_height"</span>: height, <span class="tok-str">"objects"</span>: objects}
+
+<span class="tok-kw">with</span> <span class="tok-fn">open</span>(<span class="tok-str">"src/output/vision_data.json"</span>, <span class="tok-str">"w"</span>, encoding=<span class="tok-str">"utf-8"</span>) <span class="tok-kw">as</span> file:
+    json.dump(vision_dict, file, ensure_ascii=<span class="tok-fn">False</span>, indent=<span class="tok-num">4</span>)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">01 세션이 여기서 쓰인다</span><p><code class="inline">json.dump(..., ensure_ascii=False, indent=4)</code> — 01 세션에서 배운 그 인자들입니다. <code class="inline">ensure_ascii=False</code>가 없으면 한글 클래스명이 유니코드 이스케이프로 저장됩니다.<br><br><code class="inline">.cpu().tolist()</code>도 03 세션의 그 패턴입니다 — GPU 텐서는 Python 리스트로 바로 못 바꿉니다.</p></div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">json_to_text.py</span><span>Template 기반 자연어 변환</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">detections_to_text</span>(json_path):
+    <span class="tok-kw">with</span> <span class="tok-fn">open</span>(json_path, <span class="tok-str">"r"</span>, encoding=<span class="tok-str">"utf-8"</span>) <span class="tok-kw">as</span> file:
+        vision_data = json.load(file)
+
+    objects = vision_data[<span class="tok-str">"objects"</span>]
+
+    <span class="tok-kw">if</span> <span class="tok-fn">len</span>(objects) == <span class="tok-num">0</span>:
+        <span class="tok-kw">return</span> <span class="tok-str">"현재 탐지된 객체가 없습니다."</span>       <span class="tok-com"># 빈 결과도 문장으로!</span>
+
+    sentences = []
+    <span class="tok-kw">for</span> index, obj <span class="tok-kw">in</span> <span class="tok-fn">enumerate</span>(objects, start=<span class="tok-num">1</span>):
+        sentences.append(
+            <span class="tok-str">f"{index}번 객체는 {obj['class']}이며, confidence는 {obj['confidence']:.2f}입니다."</span>
+        )
+
+    <span class="tok-kw">return</span> <span class="tok-str">"\n"</span>.join(sentences)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">POINT</span><p>탐지된 객체가 없을 때 <b>빈 문자열이 아니라 문장을 반환</b>하는 것이 중요합니다. Context가 비어 있으면 LLM이 <b>아무 말이나 지어낼</b> 여지가 생깁니다 — "없습니다"라고 명시해 줘야 합니다.</p></div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">vision_llm.py</span><span>실시간 루프 — 키 입력으로 LLM 호출</span></div>
+        <pre><code>yolo = YOLO(YOLO_MODEL_PATH)
+llm  = Llama(model_path=GEMMA_MODEL_PATH, n_gpu_layers=<span class="tok-num">-1</span>,
+             n_ctx=<span class="tok-num">2048</span>, n_batch=<span class="tok-num">32</span>, n_ubatch=<span class="tok-num">32</span>, verbose=<span class="tok-fn">False</span>)
+cap  = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
+
+<span class="tok-kw">while</span> <span class="tok-fn">True</span>:
+    ret, frame = cap.read()
+    key = cv2.waitKey(<span class="tok-num">1</span>) &amp; <span class="tok-num">0xFF</span>
+
+    <span class="tok-kw">if</span> <span class="tok-kw">not</span> ret <span class="tok-kw">or</span> key == <span class="tok-fn">ord</span>(<span class="tok-str">"q"</span>):
+        <span class="tok-kw">break</span>
+
+    <span class="tok-com"># 1~3. 매 프레임 YOLO 탐지 + 화면 출력 + Dictionary 변환</span>
+    result = yolo.predict(source=frame, conf=<span class="tok-num">0.25</span>, iou=<span class="tok-num">0.5</span>, verbose=<span class="tok-fn">False</span>)[<span class="tok-num">0</span>]
+    cv2.imshow(<span class="tok-str">"YOLO + Gemma"</span>, result.plot())
+    vision_dict = {...}
+
+    <span class="tok-com"># 4~6. 'l' 키를 누른 프레임에서만 LLM 호출</span>
+    <span class="tok-kw">if</span> key == <span class="tok-fn">ord</span>(<span class="tok-str">"l"</span>):
+        <span class="tok-kw">with</span> <span class="tok-fn">open</span>(JSON_PATH, <span class="tok-str">"w"</span>, encoding=<span class="tok-str">"utf-8"</span>) <span class="tok-kw">as</span> file:
+            json.dump(vision_dict, file, ensure_ascii=<span class="tok-fn">False</span>, indent=<span class="tok-num">4</span>)
+
+        vision_text = detections_to_text(JSON_PATH)
+
+        response = llm.create_chat_completion(
+            messages=[
+                {<span class="tok-str">"role"</span>: <span class="tok-str">"system"</span>, <span class="tok-str">"content"</span>: <span class="tok-str">"Instruction: ... Constraint: ... Output Format: ..."</span>},
+                {<span class="tok-str">"role"</span>: <span class="tok-str">"user"</span>,   <span class="tok-str">"content"</span>: <span class="tok-str">f"Context:\n{vision_text}"</span>},
+            ],
+            max_tokens=<span class="tok-num">150</span>, temperature=<span class="tok-num">0.7</span>,
+        )
+        print(response[<span class="tok-str">"choices"</span>][<span class="tok-num">0</span>][<span class="tok-str">"message"</span>][<span class="tok-str">"content"</span>])</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">왜 매 프레임이 아니라 키 입력인가</span><p>LLM 추론은 <b>수 초</b>가 걸립니다. 매 프레임 호출하면 영상이 완전히 멈춥니다. 그래서 <b>탐지는 매 프레임, LLM은 사용자가 요청할 때만</b> — 이 비대칭이 다음 절(프로세스 분리)의 출발점입니다.</p></div>
+    </section>
+
+    <section class="chapter" id="sec-b">
+      <div class="chapter-head">
+        <span class="big-letter">B</span>
+        <div><h2>프로세스 분리</h2><span class="stage-tag">파일을 통해 두 프로그램을 잇는다</span></div>
+      </div>
+      <div class="prose"><p>Vision과 LLM을 <b>하나의 프로세스에서 순차 실행</b>하면, LLM 추론 중에는 새 카메라 프레임과 탐지 결과를 처리하지 못해 최신 정보를 놓칩니다. LLM의 지연이나 오류가 Vision까지 함께 망가뜨리기도 합니다.</p>
+      <p>그래서 실제 실시간 시스템에서는 <b>각 기능을 독립 프로세스로 분리</b>하고, JSON 파일로 정보를 주고받습니다.</p></div>
+
+      <div class="compare">
+        <div class="box neg"><h4>통합 (한 프로세스)</h4><ul><li>LLM 추론 중 영상 정지</li><li>LLM 오류가 Vision까지 중단</li><li>구현은 간단</li></ul></div>
+        <div class="box pos"><h4>분리 (두 프로세스)</h4><ul><li>Vision은 계속 30 FPS 유지</li><li>한쪽이 죽어도 다른 쪽은 생존</li><li>JSON 파일이 인터페이스</li></ul></div>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">writer.py</span><span>⚠ 임시 파일에 쓰고 os.replace로 교체</span></div>
+        <pre><code>JSON_PATH      = <span class="tok-str">"src/output/vision_data.json"</span>
+TEMP_JSON_PATH = <span class="tok-str">"src/output/vision_data_tmp.json"</span>
+
+<span class="tok-kw">if</span> key == <span class="tok-fn">ord</span>(<span class="tok-str">"l"</span>):
+    <span class="tok-com"># 4. 먼저 '임시' 파일에 저장</span>
+    <span class="tok-kw">with</span> <span class="tok-fn">open</span>(TEMP_JSON_PATH, <span class="tok-str">"w"</span>, encoding=<span class="tok-str">"utf-8"</span>) <span class="tok-kw">as</span> file:
+        json.dump(vision_dict, file, ensure_ascii=<span class="tok-fn">False</span>, indent=<span class="tok-num">4</span>)
+
+    <span class="tok-com"># 5. 작성이 끝난 뒤에 실제 파일로 '교체'</span>
+    os.replace(TEMP_JSON_PATH, JSON_PATH)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">이 절의 핵심 — 왜 임시 파일을 거치나</span><p><code class="inline">json.dump</code>는 파일에 <b>조금씩 나눠 씁니다</b>. 읽는 쪽이 하필 그 중간에 파일을 열면 <b>잘린 JSON</b>을 읽어 <code class="inline">JSONDecodeError</code>가 납니다.<br><br><code class="inline">os.replace()</code>는 <b>원자적(atomic)</b>입니다 — 파일이 통째로 바뀌거나 아예 안 바뀌거나 둘 중 하나라, 읽는 쪽은 <b>언제 읽어도 완전한 JSON</b>을 봅니다. 이것이 파일로 프로세스를 잇는 표준 기법입니다.</p></div>
+      <div class="takeaway"><span class="mark">읽는 쪽(reader.py)</span><p>JSON 파일의 <b>수정 시각(<code class="inline">os.path.getmtime</code>)</b>을 주기적으로 확인하다가, 값이 바뀌면 새 탐지 결과가 들어온 것으로 보고 읽어서 Gemma에 넘깁니다. <code class="inline">time.sleep()</code>으로 폴링 간격을 둡니다.</p></div>
+    </section>
+
+    <section class="chapter" id="sec-c">
+      <div class="chapter-head">
+        <span class="big-letter">C</span>
+        <div><h2>Image 기반 멀티모달</h2><span class="stage-tag">텍스트 대신 이미지를 직접 넘긴다</span></div>
+      </div>
+      <div class="callout">
+        <span class="label">용어</span>
+        <ul>
+          <li><b>모달리티(Modality)</b> — 정보를 표현하는 데이터의 형태. Text · Image · Audio · Video</li>
+          <li><b>멀티모달(Multimodal)</b> — 서로 다른 두 가지 이상의 Modality를 함께 처리</li>
+          <li>A장은 <b>Image → Text → LLM</b>(중간에 텍스트를 거침), 여기서는 <b>Image → LLM</b>(직접)</li>
+        </ul>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">multimodal.py</span><span>mmproj + base64 data URI</span></div>
+        <pre><code><span class="tok-kw">import</span> base64
+<span class="tok-kw">from</span> llama_cpp <span class="tok-kw">import</span> Llama
+<span class="tok-kw">from</span> llama_cpp.llama_chat_format <span class="tok-kw">import</span> Gemma4ChatHandler
+
+<span class="tok-com"># 05에서 함께 받아 둔 mmproj 파일이 여기서 쓰인다</span>
+chat_handler = Gemma4ChatHandler(clip_model_path=MMPROJ_PATH)
+
+llm = Llama(
+    model_path=MODEL_PATH,
+    chat_handler=chat_handler,      <span class="tok-com"># ← 이것만 추가하면 이미지 입력이 가능해진다</span>
+    n_gpu_layers=<span class="tok-num">-1</span>, n_ctx=<span class="tok-num">2048</span>, n_batch=<span class="tok-num">32</span>, n_ubatch=<span class="tok-num">32</span>, verbose=<span class="tok-fn">False</span>,
+)
+
+<span class="tok-com"># 이미지 → JPEG 바이트 → base64 → data URI</span>
+image = cv2.imread(IMAGE_PATH)
+success, buffer = cv2.imencode(<span class="tok-str">".jpg"</span>, image)
+
+<span class="tok-kw">if</span> <span class="tok-kw">not</span> success:
+    <span class="tok-kw">raise</span> <span class="tok-fn">RuntimeError</span>(<span class="tok-str">"이미지 인코딩에 실패했습니다."</span>)
+
+image_base64 = base64.b64encode(buffer).decode(<span class="tok-str">"utf-8"</span>)
+image_data   = <span class="tok-str">"data:image/jpeg;base64,"</span> + image_base64
+
+response = llm.create_chat_completion(
+    messages=[
+        {<span class="tok-str">"role"</span>: <span class="tok-str">"system"</span>, <span class="tok-str">"content"</span>: <span class="tok-str">"Instruction: ... Constraint: ... Output Format: ..."</span>},
+        {
+            <span class="tok-str">"role"</span>: <span class="tok-str">"user"</span>,
+            <span class="tok-str">"content"</span>: [                                  <span class="tok-com"># ← content가 '리스트'가 된다!</span>
+                {<span class="tok-str">"type"</span>: <span class="tok-str">"text"</span>,      <span class="tok-str">"text"</span>: <span class="tok-str">"현재 카메라 이미지를 설명하시오."</span>},
+                {<span class="tok-str">"type"</span>: <span class="tok-str">"image_url"</span>, <span class="tok-str">"image_url"</span>: {<span class="tok-str">"url"</span>: image_data}},
+            ],
+        }
+    ],
+    max_tokens=<span class="tok-num">150</span>, temperature=<span class="tok-num">0.7</span>,
+)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">구조가 바뀌는 지점</span><p>텍스트만 넣을 때 <code class="inline">content</code>는 <b>문자열</b>이었습니다. 멀티모달에서는 <b>리스트</b>가 되고, 각 항목이 <code class="inline">{"type": ...}</code>를 가진 딕셔너리입니다. 이미지는 파일 경로가 아니라 <b>base64로 인코딩된 data URI</b>로 넘깁니다.</p></div>
+    </section>
+
+    <section class="chapter" id="sec-d">
+      <div class="chapter-head">
+        <span class="big-letter">D</span>
+        <div><h2>ROI 전달</h2><span class="stage-tag">전체가 아니라 관심 영역만</span></div>
+      </div>
+      <div class="prose"><p>프레임 전체를 넘기면 LLM이 봐야 할 것이 너무 많습니다. YOLO로 <b>신호등만 찾아 crop</b>해서 넘기면 훨씬 정확하게 답합니다 — 04 세션의 Section Project(신호등 색 판단)를 이번엔 <b>규칙이 아니라 LLM으로</b> 푸는 셈입니다.</p></div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">roi_traffic_light.py</span><span>탐지 → 선택 → crop → 전달</span></div>
+        <pre><code>results = yolo.predict(
+    source=image,
+    conf=<span class="tok-num">0.015</span>,      <span class="tok-com"># 신호등은 작아서 임계값을 크게 낮춘다</span>
+    iou=<span class="tok-num">0.5</span>,
+    classes=[<span class="tok-num">9</span>],     <span class="tok-com"># COCO 9번 = traffic light</span>
+    verbose=<span class="tok-fn">False</span>,
+)
+result = results[<span class="tok-num">0</span>]
+
+<span class="tok-kw">if</span> <span class="tok-fn">len</span>(result.boxes) == <span class="tok-num">0</span>:
+    <span class="tok-kw">raise</span> <span class="tok-fn">RuntimeError</span>(<span class="tok-str">"신호등이 탐지되지 않았습니다."</span>)
+
+<span class="tok-com"># 가장 '위에' 있는 박스 선택 (y1이 최소) — 화면 위쪽 신호등을 고르는 규칙</span>
+selected_box = <span class="tok-fn">min</span>(result.boxes, key=<span class="tok-kw">lambda</span> box: <span class="tok-fn">float</span>(box.xyxy[<span class="tok-num">0</span>][<span class="tok-num">1</span>].item()))
+x1, y1, x2, y2 = selected_box.xyxy[<span class="tok-num">0</span>].cpu().tolist()
+x1, y1, x2, y2 = <span class="tok-fn">int</span>(x1), <span class="tok-fn">int</span>(y1), <span class="tok-fn">int</span>(x2), <span class="tok-fn">int</span>(y2)
+
+<span class="tok-com"># 이미지 경계 밖으로 나가지 않도록 clamp</span>
+height, width = image.shape[:<span class="tok-num">2</span>]
+x1, y1 = <span class="tok-fn">max</span>(<span class="tok-num">0</span>, x1), <span class="tok-fn">max</span>(<span class="tok-num">0</span>, y1)
+x2, y2 = <span class="tok-fn">min</span>(width, x2), <span class="tok-fn">min</span>(height, y2)
+
+traffic_light_image = image[y1:y2, x1:x2].copy()      <span class="tok-com"># NumPy 슬라이싱 = crop</span>
+
+<span class="tok-kw">if</span> traffic_light_image.size == <span class="tok-num">0</span>:
+    <span class="tok-kw">raise</span> <span class="tok-fn">RuntimeError</span>(<span class="tok-str">"BBox 이미지를 만들 수 없습니다."</span>)</code></pre>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">strict_prompt.py</span><span>한 단어만 받아내는 Prompt</span></div>
+        <pre><code>{
+    <span class="tok-str">"role"</span>: <span class="tok-str">"system"</span>,
+    <span class="tok-str">"content"</span>: <span class="tok-str">"""
+                Instruction:
+                주어진 신호등 이미지의 현재 색을 판단하시오.
+
+                Constraint:
+                반드시 다음 세 가지 중 하나만 대답하시오.
+                빨간불
+                노란불
+                파란불
+
+                다른 설명이나 문장을 추가하지 마시오.
+
+                Output Format:
+                한 단어.
+               """</span>
+}
+
+<span class="tok-com"># temperature=0.0 — 판단 작업이므로 무작위성을 없앤다</span>
+<span class="tok-com"># max_tokens=20  — 한 단어만 받으면 되므로 짧게</span></code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">Prompt 설계 3종 세트</span><p>① <b>선택지를 명시</b>(빨간불/노란불/파란불), ② <b>금지 사항을 명시</b>("다른 설명 추가 금지"), ③ <b><code class="inline">temperature=0.0</code></b>. 이 셋을 같이 써야 <b>파싱 가능한 출력</b>이 안정적으로 나옵니다. <code class="inline">.strip()</code>으로 앞뒤 공백을 제거하는 것도 잊지 마세요.</p></div>
+      <div class="takeaway"><span class="mark">이미지도 파일로 프로세스를 잇는다</span><p>B장의 JSON과 똑같이, ROI 이미지도 <code class="inline">cv2.imwrite(TEMP_IMAGE_PATH, ...)</code> → <code class="inline">os.replace(TEMP_IMAGE_PATH, OUTPUT_IMAGE_PATH)</code>로 <b>원자적 교체</b>를 합니다. 텍스트든 이미지든 <b>같은 패턴</b>입니다.</p></div>
+    </section>
+
+    <section class="chapter" id="sec-e">
+      <div class="chapter-head">
+        <span class="big-letter">E</span>
+        <div><h2>STT — Whisper.cpp</h2><span class="stage-tag">음성을 텍스트로</span></div>
+      </div>
+      <div class="prose"><p>사용자가 Prompt를 타이핑하는 대신 <b>말로 질문</b>하게 만듭니다. 최종 목표는 <code class="inline">음성 → STT → Gemma → TTS → 음성</code>의 전체 루프입니다.</p></div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">build_whisper.sh</span><span>CPU 버전과 CUDA 버전을 따로 빌드</span></div>
+        <pre><code>git clone https://github.com/ggml-org/whisper.cpp.git
+
+sudo apt install -y cmake
+export PATH=/usr/local/cuda-12.6/bin:<span class="tok-str">$PATH</span>
+export LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64:<span class="tok-str">$LD_LIBRARY_PATH</span>
+cd whisper.cpp
+
+<span class="tok-com"># CPU 버전</span>
+cmake -B build-cpu
+cmake --build build-cpu --target whisper-cli -j4 --config Release
+
+<span class="tok-com"># CUDA 버전</span>
+cmake -B build -DGGML_CUDA=1
+cmake --build build -j4 --config Release
+
+<span class="tok-com"># 한국어 모델 다운로드</span>
+sh ./models/download-ggml-model.sh base</code></pre>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">record_and_stt.sh</span><span>arecord로 녹음 → whisper-cli로 인식</span></div>
+        <pre><code><span class="tok-com"># 5초간 16kHz 모노로 녹음</span>
+arecord -D plughw:2,0 -f S16_LE -r <span class="tok-num">16000</span> -c <span class="tok-num">1</span> -d <span class="tok-num">5</span> src/audio/input.wav
+
+<span class="tok-com"># STT 실행 (-l ko: 한국어, -nt: 타임스탬프 없이)</span>
+whisper.cpp/build-cpu/bin/whisper-cli \
+    -m whisper.cpp/models/ggml-base.bin \
+    -f src/audio/input.wav \
+    -l ko -nt</code></pre>
+      </div>
+      <table class="kv-table">
+        <tr><th>arecord 옵션</th><th>의미</th></tr>
+        <tr><td><code>-D plughw:2,0</code></td><td>마이크 장치 (<b>기기마다 번호가 다르다</b> — <code>arecord -l</code>로 확인)</td></tr>
+        <tr><td><code>-f S16_LE</code></td><td>16비트 signed little-endian</td></tr>
+        <tr><td><code>-r 16000</code></td><td>16kHz — <b>Whisper가 요구하는 샘플레이트</b></td></tr>
+        <tr><td><code>-c 1</code></td><td>모노 1채널</td></tr>
+        <tr><td><code>-d 5</code></td><td>5초간 녹음</td></tr>
+      </table>
+      <div class="code-card">
+        <div class="bar"><span class="fn">stt.py</span><span>subprocess로 CLI를 감싼다</span></div>
+        <pre><code><span class="tok-kw">import</span> subprocess
+
+<span class="tok-kw">def</span> <span class="tok-fn">speech_to_text</span>():
+    subprocess.run(
+        [
+            <span class="tok-str">"pasuspender"</span>, <span class="tok-str">"--"</span>,        <span class="tok-com"># PulseAudio를 잠시 멈춰 장치 점유 해제</span>
+            <span class="tok-str">"arecord"</span>,
+            <span class="tok-str">"-D"</span>, MIC_DEVICE,
+            <span class="tok-str">"-f"</span>, <span class="tok-str">"S16_LE"</span>,
+            <span class="tok-str">"-r"</span>, <span class="tok-str">"16000"</span>,
+            <span class="tok-str">"-c"</span>, <span class="tok-str">"1"</span>,
+            <span class="tok-str">"-d"</span>, <span class="tok-fn">str</span>(RECORD_SECONDS),
+            AUDIO_FILE,
+        ],
+        check=<span class="tok-fn">True</span>,                    <span class="tok-com"># 실패하면 예외 발생</span>
+    )
+
+    result = subprocess.run(
+        [
+            WHISPER_PATH,
+            <span class="tok-str">"-m"</span>, WHISPER_MODEL,
+            <span class="tok-str">"-f"</span>, AUDIO_FILE,
+            <span class="tok-str">"-l"</span>, <span class="tok-str">"ko"</span>,
+            <span class="tok-str">"--no-timestamps"</span>,
+        ],
+        text=<span class="tok-fn">True</span>,                     <span class="tok-com"># 결과를 문자열로 (bytes 아님)</span>
+        capture_output=<span class="tok-fn">True</span>,           <span class="tok-com"># stdout을 잡아둔다</span>
+        check=<span class="tok-fn">True</span>,
+    )
+
+    <span class="tok-kw">return</span> result.stdout.strip()</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">subprocess 3인자</span><p><code class="inline">check=True</code> 실패 시 예외 · <code class="inline">text=True</code> 출력을 문자열로 · <code class="inline">capture_output=True</code> stdout 캡처. 이 셋이 있어야 <code class="inline">result.stdout</code>으로 인식 결과를 받을 수 있습니다. 명령을 <b>문자열이 아니라 리스트</b>로 넘기는 것도 중요합니다 — 공백이 든 경로도 안전하게 처리됩니다.</p></div>
+    </section>
+
+    <section class="chapter" id="sec-f">
+      <div class="chapter-head">
+        <span class="big-letter">F</span>
+        <div><h2>TTS — Piper</h2><span class="stage-tag">텍스트를 음성으로</span></div>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">install_piper.sh</span><span>⚠ 별도 가상환경에 설치한다</span></div>
+        <pre><code>deactivate                          <span class="tok-com"># 기존 venv에서 빠져나온다</span>
+python3 -m venv .piper_venv
+source .piper_venv/bin/activate
+
+pip install piper-tts
+
+<span class="tok-com"># 한국어 음성 모델</span>
+mkdir -p src/models/Piper
+python3 -m piper.download_voices ko_KR-kss-medium --data-dir src/models/Piper</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">왜 가상환경을 나누나</span><p>Piper는 자체 의존성(특히 ONNX 런타임 계열)을 요구해, 지금까지 <b>04·05에서 힘들게 맞춰 놓은 NumPy 1.23.0 / OpenCV / ultralytics 조합을 깨뜨릴 수 있습니다</b>. 그래서 아예 <b>별도 venv</b>에 격리하고, 메인 코드에서는 <code class="inline">.piper_venv/bin/python</code>을 <b>subprocess로 호출</b>합니다.</p></div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">tts.py</span><span>합성 → 재생</span></div>
+        <pre><code>PIPER_PYTHON  = <span class="tok-str">".piper_venv/bin/python"</span>     <span class="tok-com"># ← 다른 venv의 python을 직접 지목</span>
+PIPER_MODEL   = <span class="tok-str">"src/models/Piper/ko_KR-kss-medium.onnx"</span>
+OUTPUT_FILE   = <span class="tok-str">"src/audio/response.wav"</span>
+SPEAKER_DEVICE = <span class="tok-str">"plughw:2,0"</span>
+
+<span class="tok-kw">def</span> <span class="tok-fn">text_to_speech</span>(text):
+    <span class="tok-com"># 1) 텍스트 → wav 파일</span>
+    subprocess.run(
+        [PIPER_PYTHON, <span class="tok-str">"-m"</span>, <span class="tok-str">"piper"</span>,
+         <span class="tok-str">"-m"</span>, PIPER_MODEL,
+         <span class="tok-str">"-f"</span>, OUTPUT_FILE,
+         <span class="tok-str">"--"</span>, text],          <span class="tok-com"># "--" 이후는 옵션이 아니라 '내용'</span>
+        check=<span class="tok-fn">True</span>,
+    )
+
+    <span class="tok-com"># 2) wav 파일 재생</span>
+    subprocess.run([<span class="tok-str">"aplay"</span>, <span class="tok-str">"-D"</span>, SPEAKER_DEVICE, OUTPUT_FILE], check=<span class="tok-fn">True</span>)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">POINT</span><p><code class="inline">"--"</code>는 "여기서부터는 옵션이 아니다"라는 표시입니다. 합성할 문장이 <code class="inline">-</code>로 시작해도 옵션으로 오해받지 않습니다.</p></div>
+
+      <div class="callout">
+        <span class="label">Final Project — 전체 파이프라인 연결</span>
+        <ul>
+          <li><span class="k">1.</span> <code class="inline">speech_to_text()</code>로 사용자 질문을 받는다</li>
+          <li><span class="k">2.</span> YOLO로 현재 프레임을 탐지하고 ROI를 crop</li>
+          <li><span class="k">3.</span> 질문(텍스트) + ROI(이미지)를 <b>함께</b> Gemma에 넘긴다 (C장의 리스트형 <code class="inline">content</code>)</li>
+          <li><span class="k">4.</span> <code class="inline">text_to_speech(answer)</code>로 답변을 소리내어 읽는다</li>
+          <li>이 시점에 <b>Vision(04) + LLM(05) + Multimodal + 음성</b>이 하나로 합쳐집니다</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer class="page-end">
+      원본: <code class="inline">06-Vision_LLM_Multimodal_Systems.ipynb</code> (<code class="inline">linux-work</code> 브랜치) · Physical AI Vision-LLM 융합 시청각 멀티모달 시스템 세션 6 정리
+    </footer>
+  </main>
+</div>
+
+<script>
+  (function(){
+    var toggle = document.getElementById('tocToggle');
+    var nav = document.getElementById('tocNav');
+    if(toggle){
+      toggle.addEventListener('click', function(){
+        nav.classList.toggle('open');
+        toggle.textContent = nav.classList.contains('open') ? '목차 접기 ▴' : '목차 펼치기 ▾';
+      });
+    }
+    var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a'));
+    var sections = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+    function onScroll(){
+      var pos = window.scrollY + 120;
+      var activeIdx = 0;
+      for(var i=0;i<sections.length;i++){
+        if(sections[i] && sections[i].offsetTop <= pos) activeIdx = i;
+      }
+      links.forEach(function(a,i){ a.classList.toggle('active', i===activeIdx); });
+    }
+    document.addEventListener('scroll', onScroll, {passive:true});
+    onScroll();
+  })();
+</script>
+</body>
+</html>
