@@ -411,6 +411,10 @@
         <li><a href="#sec-i"><span class="letter">I</span>MNIST GPU 학습</a></li>
         <li><a href="#sec-j"><span class="letter">J</span>CIFAR-10</a></li>
       </ol>
+    <div class="group-label">04 · 정답 코드</div>
+      <ol>
+        <li><a href="#sec-k"><span class="letter">K</span>실습 정답 코드</a></li>
+      </ol>
     </nav>
   </aside>
 
@@ -920,6 +924,225 @@ loaded_model.load_state_dict(state_dict[<span class="tok-str">"model_state_dict"
 loaded_model.eval()</code></pre>
       </div>
       <div class="takeaway"><span class="mark">POINT</span><p><code class="inline">state_dict</code>는 <b>구조가 아니라 가중치만</b> 담는다 — 불러오기 전에 같은 클래스를 정의해 인스턴스를 만들어야 한다. 전처리 통계(<code class="inline">mean</code>/<code class="inline">std</code>)를 함께 저장하는 이유는, <b>추론 때 학습과 다른 전처리를 쓰면 성능이 무너지기</b> 때문이다.</p></div>
+    </section>
+
+    <!-- ================= K : ANSWER ================= -->
+    <section class="chapter" id="sec-k">
+      <div class="chapter-head">
+        <span class="big-letter">K</span>
+        <div><h2>실습 정답 코드</h2><span class="stage-tag">[ANSWER]_03_DL-and-GPU.ipynb</span></div>
+      </div>
+      <div class="prose"><p>노트북의 <code class="inline">TODO</code> 셀에 대한 공식 정답입니다. 직접 풀어 본 뒤 대조해 보세요. 정답 노트북 자체의 문제점도 함께 짚었습니다.</p></div>
+
+      <h3 style="font-size:16px;margin:26px 0 6px;">A. 논리 게이트 <span style="color:var(--ink-faint);font-weight:400;">(셀 22–25)</span></h3>
+      <div class="code-card">
+        <div class="bar"><span class="fn">gates.py</span><span>AND의 부호를 뒤집으면 NAND, OR을 뒤집으면 NOR</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">OR</span>(x1, x2):
+    x = np.array([x1, x2])
+    w = np.array([<span class="tok-num">0.5</span>, <span class="tok-num">0.5</span>])
+    b = <span class="tok-num">-0.2</span>                      <span class="tok-com"># AND(-0.7)보다 문턱이 낮다</span>
+    <span class="tok-kw">return</span> step_function(np.sum(x * w) + b)
+
+<span class="tok-kw">def</span> <span class="tok-fn">NAND</span>(x1, x2):
+    x = np.array([x1, x2])
+    w = np.array([<span class="tok-num">-0.5</span>, <span class="tok-num">-0.5</span>])    <span class="tok-com"># AND의 부호를 전부 반전</span>
+    b = <span class="tok-num">0.7</span>
+    <span class="tok-kw">return</span> step_function(np.sum(x * w) + b)
+
+<span class="tok-kw">def</span> <span class="tok-fn">NOR</span>(x1, x2):
+    x = np.array([x1, x2])
+    w = np.array([<span class="tok-num">-0.5</span>, <span class="tok-num">-0.5</span>])    <span class="tok-com"># OR의 부호를 전부 반전</span>
+    b = <span class="tok-num">0.2</span>
+    <span class="tok-kw">return</span> step_function(np.sum(x * w) + b)
+
+<span class="tok-com"># XOR — 정답 노트북에는 pass로 비어 있다. B장에서 다층으로 푸는 것이 답:</span>
+<span class="tok-kw">def</span> <span class="tok-fn">XOR</span>(x1, x2):
+    <span class="tok-kw">return</span> AND(NAND(x1, x2), OR(x1, x2))</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">참고</span><p>정답 노트북의 XOR 셀(25번)은 <code class="inline">pass</code>인 채로 남아 있습니다. 단층으로는 원리적으로 풀 수 없는 문제라 B장의 다층 구조로 넘어가는 것이 의도된 흐름입니다.</p></div>
+
+      <h3 style="font-size:16px;margin:30px 0 6px;">E. Smoothing / Sharpening 필터 <span style="color:var(--ink-faint);font-weight:400;">(셀 133)</span></h3>
+      <div class="code-card">
+        <div class="bar"><span class="fn">filters.py</span><span>11×11 Gaussian 계열 커널 · padding=5</span></div>
+        <pre><code><span class="tok-com"># 11x11 Gaussian 형태의 Smoothing 커널 (중심 0.1153에서 바깥으로 감소)</span>
+smoothing_filter = np.array([[<span class="tok-num">0.0005</span>, <span class="tok-num">0.0013</span>, ... ]], dtype=np.float32)
+
+<span class="tok-com"># 11x11 Sharpening 커널 (중심 +3.0, 주변 전부 음수)</span>
+sharpening_filter = np.array([[<span class="tok-num">-0.001</span>, <span class="tok-num">-0.003</span>, ... ]], dtype=np.float32)
+
+<span class="tok-com"># 합이 1이 되도록 정규화</span>
+smoothing_filter  = smoothing_filter  / np.sum(smoothing_filter)
+sharpening_filter = sharpening_filter / np.sum(sharpening_filter)
+
+smoothing_bias  = <span class="tok-num">0</span>
+sharpening_bias = <span class="tok-num">0</span>
+
+smoothing_output = convolution2d(input_image, smoothing_filter,
+                                 smoothing_bias, stride=<span class="tok-num">1</span>, padding=<span class="tok-num">5</span>)
+sharpening_output = convolution2d(input_image, sharpening_filter,
+                                  sharpening_bias, stride=<span class="tok-num">1</span>, padding=<span class="tok-num">5</span>)
+
+<span class="tok-com"># 둘 다 ReLU 불필요 (합=1이라 값이 입력 범위 안에 머문다)</span>
+smoothing_feature_map  = smoothing_output
+sharpening_feature_map = sharpening_output</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">POINT</span><p><code class="inline">padding=5</code>인 이유 — 커널이 11×11이므로 크기를 유지하려면 <code class="inline">(K−1)/2 = 5</code>가 필요합니다. 3×3에서 <code class="inline">padding=1</code>이었던 것과 같은 규칙입니다.</p></div>
+      <div class="takeaway"><span class="mark">⚠ 정답 노트북의 오류</span><p><b>Sharpening 필터는 정규화하면 안 됩니다.</b> 이 커널의 합은 <code class="inline">−3.252</code>로 <b>음수</b>라서, 합으로 나누면 <b>모든 부호가 뒤집힙니다</b> — 중심이 <code class="inline">+3.0 → −0.923</code>이 되고 주변이 양수가 됩니다.<br><br>계단 엣지 이미지로 확인해 보면 정규화 전에는 엣지 대비가 <code class="inline">+0.92</code>인데 정규화 후에는 <code class="inline">−0.28</code>로, <b>선명해지는 게 아니라 반전된 흐릿한 이미지</b>가 나옵니다. Sharpening 커널은 이미 합이 <b>양수 1 근처</b>가 되도록 설계하거나, <b>정규화 단계를 건너뛰어야</b> 합니다. (Smoothing 커널은 합이 <code class="inline">+3.244</code>라 정규화가 정상 동작합니다.)</p></div>
+
+      <h3 style="font-size:16px;margin:30px 0 6px;">F. 학습 지표 그래프 · Feature Map <span style="color:var(--ink-faint);font-weight:400;">(셀 243 · 245 · 248)</span></h3>
+      <div class="code-card">
+        <div class="bar"><span class="fn">plots.py</span><span>정확도는 0~1이므로 ×100</span></div>
+        <pre><code>epoch_axis = <span class="tok-fn">range</span>(<span class="tok-num">1</span>, epochs + <span class="tok-num">1</span>)
+
+plt.plot(epoch_axis, train_loss_history, marker=<span class="tok-str">"o"</span>, label=<span class="tok-str">"Train loss"</span>)
+plt.plot(epoch_axis, test_loss_history,  marker=<span class="tok-str">"o"</span>, label=<span class="tok-str">"Test loss"</span>)
+
+<span class="tok-com"># 리스트에는 * 가 안 되므로 np.array로 감싼다</span>
+plt.plot(epoch_axis, np.array(train_accuracy_history) * <span class="tok-num">100</span>, marker=<span class="tok-str">"o"</span>, label=<span class="tok-str">"Train accuracy"</span>)
+plt.plot(epoch_axis, np.array(test_accuracy_history)  * <span class="tok-num">100</span>, marker=<span class="tok-str">"o"</span>, label=<span class="tok-str">"Test accuracy"</span>)</code></pre>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">feature_maps.py</span><span>학습된 모델의 각 층 시각화</span></div>
+        <pre><code>image, true_label = test_dataset[<span class="tok-num">1</span>]
+input_batch = image.unsqueeze(<span class="tok-num">0</span>).to(device)
+
+model.eval()
+<span class="tok-kw">with</span> torch.no_grad():
+    logits, features = model(input_batch, return_features=<span class="tok-fn">True</span>)
+
+show_feature_maps(features[<span class="tok-str">"conv1"</span>], <span class="tok-str">"Conv1 Feature Maps"</span>, max_maps=<span class="tok-num">8</span>,  cmap=<span class="tok-str">"viridis"</span>)
+show_feature_maps(features[<span class="tok-str">"conv2"</span>], <span class="tok-str">"Conv2 Feature Maps"</span>, max_maps=<span class="tok-num">16</span>, cmap=<span class="tok-str">"viridis"</span>)
+
+<span class="tok-kw">for</span> name <span class="tok-kw">in</span> [<span class="tok-str">"conv1"</span>, <span class="tok-str">"relu1"</span>, <span class="tok-str">"pool1"</span>, <span class="tok-str">"conv2"</span>, <span class="tok-str">"relu2"</span>, <span class="tok-str">"pool2"</span>]:
+    show_feature_maps(features[name], <span class="tok-str">f"{name} Feature Maps"</span>, max_maps=<span class="tok-num">4</span>, cmap=<span class="tok-str">"viridis"</span>)</code></pre>
+      </div>
+
+      <h3 style="font-size:16px;margin:30px 0 6px;">G. 잔상 효과 · CuPy Convolution <span style="color:var(--ink-faint);font-weight:400;">(셀 303 · 305 · 330 · 332 · 334)</span></h3>
+      <div class="code-card">
+        <div class="bar"><span class="fn">motion_trail.py</span><span>CPU는 픽셀 순회, GPU는 shift 순회</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">motion_trail_np</span>(image, weights):
+    image_height, image_width = image.shape
+    trail_length = <span class="tok-fn">len</span>(weights)
+    output = np.zeros((image_height, image_width), dtype=np.float32)
+
+    <span class="tok-kw">for</span> output_y <span class="tok-kw">in</span> <span class="tok-fn">range</span>(image_height):
+        <span class="tok-kw">for</span> output_x <span class="tok-kw">in</span> <span class="tok-fn">range</span>(image_width):
+            weighted_sum = <span class="tok-num">0.0</span>
+            <span class="tok-kw">for</span> shift <span class="tok-kw">in</span> <span class="tok-fn">range</span>(trail_length):
+                input_x = output_x - shift
+                <span class="tok-kw">if</span> input_x &gt;= <span class="tok-num">0</span>:                  <span class="tok-com"># 왼쪽 경계 밖은 기여하지 않는다</span>
+                    weighted_sum += image[output_y, input_x] * weights[shift]
+            output[output_y, output_x] = weighted_sum
+    <span class="tok-kw">return</span> output
+
+
+<span class="tok-kw">def</span> <span class="tok-fn">motion_trail_cp</span>(image, weights):
+    image_height, image_width = image.shape
+    trail_length = <span class="tok-fn">len</span>(weights)               <span class="tok-com"># TRAIL_LENGTH 하드코딩 금지 (워밍업은 길이 4)</span>
+    output = cp.zeros((image_height, image_width), dtype=cp.float32)
+
+    <span class="tok-kw">for</span> shift <span class="tok-kw">in</span> <span class="tok-fn">range</span>(trail_length):        <span class="tok-com"># 반복은 32번뿐</span>
+        input_region  = image[:, :image_width - shift]
+        output_region = output[:, shift:]         <span class="tok-com"># 뷰(view)이므로 += 가 원본을 수정</span>
+        output_region += input_region * weights[shift]
+    <span class="tok-kw">return</span> output</code></pre>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">convolution2d_cp.py</span><span>공식 정답 — 앞서 유도한 슬라이스와 정확히 일치</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">convolution2d_cp</span>(image, kernel, bias=<span class="tok-num">0.0</span>, stride=<span class="tok-num">1</span>, padding=<span class="tok-num">0</span>):
+    image_height, image_width = image.shape
+    kernel_height, kernel_width = kernel.shape
+
+    padded_image = cp.pad(image, ((padding, padding), (padding, padding)),
+                          mode=<span class="tok-str">"constant"</span>, constant_values=<span class="tok-num">0</span>)
+
+    output_height = (padded_image.shape[<span class="tok-num">0</span>] - kernel_height) // stride + <span class="tok-num">1</span>
+    output_width  = (padded_image.shape[<span class="tok-num">1</span>] - kernel_width)  // stride + <span class="tok-num">1</span>
+    output = cp.zeros((output_height, output_width), dtype=cp.float32)
+
+    <span class="tok-kw">for</span> kernel_y <span class="tok-kw">in</span> <span class="tok-fn">range</span>(kernel_height):
+        <span class="tok-kw">for</span> kernel_x <span class="tok-kw">in</span> <span class="tok-fn">range</span>(kernel_width):
+            image_region = padded_image[
+                kernel_y:kernel_y + output_height * stride:stride,
+                kernel_x:kernel_x + output_width  * stride:stride
+            ]
+            output += image_region * kernel[kernel_y, kernel_x]
+
+    output += bias        <span class="tok-com"># 루프 '밖'에서 한 번만</span>
+    <span class="tok-kw">return</span> output</code></pre>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">conv_pipeline.py</span><span>변환 → 워밍업 → 측정 → 회수</span></div>
+        <pre><code><span class="tok-com"># --- CPU ---</span>
+cpu_start = time.perf_counter()
+output_dx_np = convolution2d(input_np, dx_edge_filter, dx_bias, stride=<span class="tok-num">1</span>, padding=<span class="tok-num">1</span>)
+output_dy_np = convolution2d(input_np, dy_edge_filter, dy_bias, stride=<span class="tok-num">1</span>, padding=<span class="tok-num">1</span>)
+cpu_time = time.perf_counter() - cpu_start
+relu_dx_np, relu_dy_np = relu(output_dx_np), relu(output_dy_np)
+
+<span class="tok-com"># --- ① 변환 ---</span>
+input_cp = cp.asarray(input_np)
+dx_edge_filter_cp = cp.asarray(dx_edge_filter)
+dy_edge_filter_cp = cp.asarray(dy_edge_filter)
+
+<span class="tok-com"># --- ② 워밍업 ---</span>
+_ = convolution2d_cp(cp.zeros((<span class="tok-num">64</span>,<span class="tok-num">64</span>), dtype=cp.float32),
+                     cp.ones((<span class="tok-num">3</span>,<span class="tok-num">3</span>), dtype=cp.float32), padding=<span class="tok-num">1</span>)
+cp.cuda.Stream.null.synchronize()
+
+<span class="tok-com"># --- ③ 측정 ---</span>
+cp.cuda.Stream.null.synchronize()
+gpu_start = time.perf_counter()
+output_dx_cp = convolution2d_cp(input_cp, dx_edge_filter_cp, dx_bias, <span class="tok-num">1</span>, <span class="tok-num">1</span>)
+output_dy_cp = convolution2d_cp(input_cp, dy_edge_filter_cp, dy_bias, <span class="tok-num">1</span>, <span class="tok-num">1</span>)
+cp.cuda.Stream.null.synchronize()
+gpu_time = time.perf_counter() - gpu_start
+
+<span class="tok-com"># --- ④ 회수 후 ReLU ---</span>
+relu_dx_cp_np = relu(cp.asnumpy(output_dx_cp))
+relu_dy_cp_np = relu(cp.asnumpy(output_dy_cp))
+
+print(<span class="tok-str">f"Speedup: {cpu_time / gpu_time:.2f}x"</span>)</code></pre>
+      </div>
+
+      <h3 style="font-size:16px;margin:30px 0 6px;">I · J. GPU 학습 루프 <span style="color:var(--ink-faint);font-weight:400;">(셀 389 · 456)</span></h3>
+      <div class="code-card">
+        <div class="bar"><span class="fn">main_gpu.py</span><span>CPU 버전에서 device·동기화만 바뀐다</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">main_gpu</span>():
+    seed = <span class="tok-num">42</span>
+    random.seed(seed); np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)         <span class="tok-com"># GPU 난수도 고정</span>
+
+    <span class="tok-com">... Dataset / DataLoader 는 CPU 버전과 동일 ...</span>
+
+    <span class="tok-kw">if</span> <span class="tok-kw">not</span> torch.cuda.is_available():
+        <span class="tok-kw">raise</span> <span class="tok-fn">RuntimeError</span>(<span class="tok-str">"CUDA를 사용할 수 없습니다."</span>)
+
+    device = torch.device(<span class="tok-str">"cuda"</span>)
+    model = SimpleCNN().to(device)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=<span class="tok-num">0.001</span>)
+
+    torch.cuda.synchronize()                 <span class="tok-com"># 측정 시작 전</span>
+    training_start_time = time.perf_counter()
+
+    <span class="tok-kw">for</span> epoch <span class="tok-kw">in</span> <span class="tok-fn">range</span>(epochs):
+        torch.cuda.synchronize()
+        epoch_start_time = time.perf_counter()
+
+        <span class="tok-com"># train_one_epoch / evaluate 는 한 글자도 바꾸지 않는다</span>
+        train_loss, train_accuracy = train_one_epoch(model, train_loader, criterion, optimizer, device)
+        test_loss,  test_accuracy  = evaluate(model, test_loader, criterion, device)
+
+        torch.cuda.synchronize()
+        epoch_time = time.perf_counter() - epoch_start_time
+
+    torch.cuda.synchronize()                 <span class="tok-com"># 측정 종료 전</span>
+    total_training_time = time.perf_counter() - training_start_time
+    <span class="tok-kw">return</span> total_training_time</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">CIFAR-10 루프 (셀 456)</span><p>구조가 완전히 같습니다 — <code class="inline">EPOCHS = 5</code>로 두고 <code class="inline">train_one_epoch</code> / <code class="inline">evaluate</code>를 그대로 호출하며, 매 epoch 앞뒤로 <code class="inline">torch.cuda.synchronize()</code>를 넣어 시간을 잽니다. 정답 노트북은 GPU 워밍업 셀(453)을 이미 실행해 둔 상태를 전제로 합니다.</p></div>
     </section>
 
     <footer class="page-end">
