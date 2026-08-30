@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linux CLI · Python 기초 노트</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;display=swap">
+
+<style>
+  :root{
+    --bg:#F1F3F1;
+    --surface:#FFFFFF;
+    --surface-2:#E7EBE8;
+    --surface-3:#DCE2DE;
+    --ink:#14181A;
+    --ink-soft:#55605C;
+    --ink-faint:#8A948F;
+    --border:#D5DBD7;
+    --accent:#C8631F;
+    --accent-soft:#F1E0CE;
+    --accent-ink:#FFFFFF;
+    --accent2:#227373;
+    --accent2-soft:#DCEAEA;
+    --red:#B23A32;
+    --code-kw:#8B4A9C;
+    --code-str:#2E7D46;
+    --code-com:#8A948F;
+    --code-fn:#1D6FB8;
+    --code-num:#B2622E;
+    --shadow: 0 1px 2px rgba(20,24,26,.06), 0 8px 24px -12px rgba(20,24,26,.18);
+    --radius: 10px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#14181A;
+      --surface:#1B2023;
+      --surface-2:#20272A;
+      --surface-3:#283130;
+      --ink:#E8EDE9;
+      --ink-soft:#9AA8A2;
+      --ink-faint:#657069;
+      --border:#313B38;
+      --accent:#E39150;
+      --accent-soft:#3A2A1B;
+      --accent-ink:#1A1006;
+      --accent2:#5FC2C0;
+      --accent2-soft:#17302F;
+      --red:#E07B72;
+      --code-kw:#C892D8;
+      --code-str:#7FCB93;
+      --code-com:#7C8983;
+      --code-fn:#7EB6E8;
+      --code-num:#E3A374;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14181A;
+    --surface:#1B2023;
+    --surface-2:#20272A;
+    --surface-3:#283130;
+    --ink:#E8EDE9;
+    --ink-soft:#9AA8A2;
+    --ink-faint:#657069;
+    --border:#313B38;
+    --accent:#E39150;
+    --accent-soft:#3A2A1B;
+    --accent-ink:#1A1006;
+    --accent2:#5FC2C0;
+    --accent2-soft:#17302F;
+    --red:#E07B72;
+    --code-kw:#C892D8;
+    --code-str:#7FCB93;
+    --code-com:#7C8983;
+    --code-fn:#7EB6E8;
+    --code-num:#E3A374;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"IBM Plex Sans","IBM Plex Sans KR",-apple-system,sans-serif;
+    font-size:16px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  a{ color:var(--accent2); text-decoration-thickness: 1.5px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, summary:focus-visible{
+    outline: 2.5px solid var(--accent2); outline-offset: 2px; border-radius:4px;
+  }
+
+  h1,h2,h3,h4{
+    font-family:"IBM Plex Sans Condensed","IBM Plex Sans KR",sans-serif;
+    font-weight:700;
+    text-wrap:balance;
+    margin:0;
+    letter-spacing:.1px;
+  }
+
+  .layout{
+    display:grid;
+    grid-template-columns: 250px minmax(0,1fr);
+    max-width:1180px;
+    margin:0 auto;
+    align-items:start;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+    padding:28px 14px 28px 20px;
+    border-right:1px solid var(--border);
+    scrollbar-width:thin;
+  }
+  .brand{
+    display:block;
+    font-family:"IBM Plex Sans Condensed",sans-serif;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-bottom:4px;
+  }
+  .brand strong{
+    display:block;
+    font-size:19px;
+    letter-spacing:0;
+    text-transform:none;
+    color:var(--ink);
+    margin-top:6px;
+    line-height:1.25;
+  }
+  nav.toc{ margin-top:26px; }
+  nav.toc .group-label{
+    font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--ink-faint); font-weight:600; padding:0 10px; margin:18px 0 6px;
+  }
+  nav.toc .group-label:first-child{ margin-top:0; }
+  nav.toc ol{ list-style:none; margin:0; padding:0; counter-reset:none; }
+  nav.toc a{
+    display:flex; align-items:baseline; gap:10px;
+    padding:6px 10px; border-radius:7px;
+    color:var(--ink-soft); text-decoration:none; font-size:14.5px;
+    transition:background .12s ease, color .12s ease;
+  }
+  nav.toc a:hover{ background:var(--surface-2); color:var(--ink); }
+  nav.toc a .letter{
+    font-family:"IBM Plex Mono",monospace; font-size:12.5px; font-weight:600;
+    color:var(--accent); width:1.1em; flex:none;
+  }
+  nav.toc a.active{ background:var(--accent-soft); color:var(--ink); }
+  nav.toc a.active .letter{ color:var(--accent); }
+
+  /* ---------- Main ---------- */
+  main{ padding:56px 44px 120px; min-width:0; }
+
+  header.hero{ max-width:660px; margin-bottom:54px; }
+  .eyebrow{
+    font-family:"IBM Plex Sans Condensed",sans-serif;
+    font-size:12.5px; letter-spacing:.11em; text-transform:uppercase;
+    color:var(--accent); font-weight:600; margin-bottom:14px; display:block;
+  }
+  header.hero h1{ font-size:38px; line-height:1.15; margin-bottom:16px; }
+  header.hero .sub{ color:var(--ink-soft); font-size:16.5px; max-width:58ch; }
+
+  .stage-row{
+    display:flex; flex-wrap:wrap; gap:10px; margin-top:26px;
+  }
+  .stage-chip{
+    display:flex; align-items:center; gap:8px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:999px; padding:7px 14px 7px 10px; font-size:13.5px; color:var(--ink-soft);
+  }
+  .stage-chip b{ color:var(--ink); font-weight:600; }
+  .stage-chip .n{
+    width:20px; height:20px; border-radius:50%; background:var(--accent2-soft); color:var(--accent2);
+    display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:700;
+    font-family:"IBM Plex Mono",monospace;
+  }
+
+  section.chapter{
+    padding-top:52px; margin-top:6px; border-top:1px solid var(--border);
+    scroll-margin-top: 20px;
+  }
+  section.chapter:first-of-type{ border-top:none; padding-top:0; }
+
+  .chapter-head{ display:flex; gap:18px; align-items:flex-start; margin-bottom:22px; }
+  .chapter-head .big-letter{
+    font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700;
+    font-size:44px; line-height:1; color:var(--accent2); flex:none;
+    min-width:.9em;
+  }
+  .chapter-head h2{ font-size:25px; padding-top:5px; }
+  .chapter-head .stage-tag{
+    display:inline-block; margin-top:8px;
+    font-size:11.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:600;
+    color:var(--ink-faint);
+  }
+
+  .prose{ max-width:70ch; }
+  .prose p{ margin:0 0 14px; color:var(--ink); }
+  .prose p.soft{ color:var(--ink-soft); }
+
+  .callout{
+    background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent2);
+    border-radius:8px; padding:16px 20px; margin:18px 0 22px; max-width:70ch;
+    box-shadow:var(--shadow);
+  }
+  .callout .label{
+    font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
+    color:var(--accent2); margin-bottom:8px; display:block;
+  }
+  .callout ul{ margin:0; padding-left:20px; }
+  .callout li{ margin-bottom:6px; color:var(--ink); }
+  .callout li:last-child{ margin-bottom:0; }
+  .callout li .k{ color:var(--ink-soft); }
+
+  .takeaway{
+    display:flex; gap:12px; align-items:flex-start;
+    background:var(--accent-soft); border-radius:8px; padding:14px 18px;
+    margin-top:22px; max-width:70ch;
+  }
+  .takeaway .mark{
+    font-family:"IBM Plex Mono",monospace; font-weight:700; color:var(--accent); font-size:13px;
+    flex:none; margin-top:2px;
+  }
+  .takeaway p{ margin:0; color:var(--ink); font-size:14.5px; }
+
+  /* formula */
+  .formula{
+    font-family:"IBM Plex Mono",monospace; background:var(--surface-2);
+    border:1px solid var(--border); border-radius:8px;
+    padding:16px 22px; margin:16px 0; max-width:70ch;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    font-size:15.5px; overflow-x:auto;
+  }
+  .formula .frac{
+    display:inline-flex; flex-direction:column; align-items:center; vertical-align:middle;
+    margin:0 3px; line-height:1.3;
+  }
+  .formula .frac .num{ border-bottom:1.4px solid currentColor; padding:0 4px 1px; }
+  .formula .frac .den{ padding:1px 4px 0; }
+  .formula sup{ font-size:.7em; }
+
+  /* code card */
+  .code-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    margin:16px 0 22px; overflow:hidden; box-shadow:var(--shadow);
+    max-width: 100%;
+  }
+  .code-card .bar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:9px 16px; background:var(--surface-2); border-bottom:1px solid var(--border);
+    font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-soft);
+  }
+  .code-card .bar .fn{ color:var(--ink); font-weight:600; }
+  .code-card pre{
+    margin:0; padding:16px 18px; overflow-x:auto;
+    font-family:"IBM Plex Mono",monospace; font-size:13.3px; line-height:1.62;
+  }
+  .code-card code{ color:var(--ink); }
+  .tok-kw{ color:var(--code-kw); }
+  .tok-str{ color:var(--code-str); }
+  .tok-com{ color:var(--code-com); font-style:italic; }
+  .tok-fn{ color:var(--code-fn); }
+  .tok-num{ color:var(--code-num); }
+
+  .kv-table{ width:100%; border-collapse:collapse; margin:14px 0 20px; max-width:70ch; font-size:14px; }
+  .kv-table th, .kv-table td{
+    text-align:left; padding:8px 12px; border-bottom:1px solid var(--border);
+  }
+  .kv-table th{ color:var(--ink-faint); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.05em; }
+  .kv-table td code{ font-family:"IBM Plex Mono",monospace; font-size:12.8px; background:var(--surface-2); padding:1px 5px; border-radius:4px; }
+  .kv-table td.num{ font-variant-numeric: tabular-nums; }
+
+  .compare{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:16px 0 22px; max-width:70ch; }
+  .compare .box{ background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
+  .compare .box h4{ font-size:14px; margin-bottom:8px; color:var(--ink); }
+  .compare .box.pos{ border-left:3px solid var(--accent2); }
+  .compare .box.neg{ border-left:3px solid var(--red); }
+  .compare ul{ margin:0; padding-left:18px; font-size:13.6px; color:var(--ink-soft); }
+  .compare li{ margin-bottom:4px; }
+
+  /* kernel grid visual */
+  .kernel-row{ display:flex; gap:28px; flex-wrap:wrap; margin:18px 0 22px; }
+  .kernel{ text-align:center; }
+  .kernel .cap{ font-size:12.5px; color:var(--ink-soft); margin-bottom:8px; }
+  .kernel .grid3{
+    display:grid; grid-template-columns:repeat(3,34px); grid-template-rows:repeat(3,34px);
+    gap:3px; background:var(--border); border:1px solid var(--border); border-radius:6px; overflow:hidden;
+  }
+  .kernel .grid3 span{
+    background:var(--surface); display:flex; align-items:center; justify-content:center;
+    font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--ink);
+  }
+  .kernel .grid3 span.center{ background:var(--accent-soft); color:var(--accent); font-weight:700; }
+  .kernel .grid3 span.neg{ color:var(--red); }
+
+  /* HSV wheel */
+  .hsv-wrap{ display:flex; gap:32px; align-items:center; flex-wrap:wrap; margin:18px 0 24px; }
+  .hsv-wrap svg{ flex:none; }
+  .hsv-legend{ font-size:13.6px; color:var(--ink-soft); max-width:34ch; }
+  .hsv-legend div{ margin-bottom:6px; }
+  .hsv-legend b{ color:var(--ink); }
+
+  .pipeline{
+    display:flex; align-items:center; flex-wrap:wrap; gap:0; margin:18px 0 24px; max-width:70ch;
+  }
+  .pipeline .step{
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:9px 14px; font-size:13px; color:var(--ink); white-space:nowrap;
+  }
+  .pipeline .arrow{ color:var(--ink-faint); padding:0 8px; font-size:15px; }
+
+  footer.page-end{
+    max-width:70ch; margin-top:64px; padding-top:26px; border-top:1px solid var(--border);
+    color:var(--ink-faint); font-size:13px;
+  }
+
+  code.inline{
+    font-family:"IBM Plex Mono",monospace; background:var(--surface-2);
+    padding:1.5px 6px; border-radius:5px; font-size:.88em; color:var(--ink);
+  }
+
+  .mobile-toc-toggle{ display:none; }
+
+  @media (max-width: 900px){
+    .layout{ grid-template-columns: 1fr; }
+    .sidebar{
+      position:static; height:auto; border-right:none; border-bottom:1px solid var(--border);
+      padding:16px 20px;
+    }
+    nav.toc{ display:none; margin-top:14px; }
+    nav.toc.open{ display:block; }
+    .mobile-toc-toggle{
+      display:flex; align-items:center; gap:8px; width:100%;
+      background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
+      padding:10px 14px; color:var(--ink); font-size:13.5px; font-weight:600;
+      font-family:"IBM Plex Sans Condensed",sans-serif; letter-spacing:.03em;
+    }
+    main{ padding:38px 20px 90px; }
+    .compare{ grid-template-columns:1fr; }
+    header.hero h1{ font-size:30px; }
+  }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; scroll-behavior:auto !important; } }
+
+  html{ scroll-behavior:smooth; }
+
+  /* ---------- Print (PDF로 저장 시) ---------- */
+  @media print{
+    :root{
+      --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F3F4F2; --surface-3:#EAEDEA;
+      --ink:#14181A; --ink-soft:#4A5450; --ink-faint:#78827D; --border:#CBD2CD;
+      --shadow:none;
+    }
+    * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body{ font-size:12.5px; }
+    .layout{ display:block; max-width:none; }
+    .sidebar{ display:none; }
+    main{ padding:0 6mm; }
+    header.hero{ margin-bottom:30px; }
+    .stage-chip{ break-inside:avoid; }
+    section.chapter{
+      border-top:1px solid var(--border);
+      break-before:page; padding-top:24px;
+    }
+    section.chapter:first-of-type{ break-before:avoid; }
+    .code-card, .callout, .compare, .kv-table, .takeaway, .kernel-row, .hsv-wrap, .formula, .pipeline{
+      break-inside:avoid;
+    }
+    a{ color:var(--ink); text-decoration:none; }
+    .code-card pre{ white-space:pre-wrap; word-break:break-word; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <span class="brand">Study Notes<strong>기초 Linux CLI<br>및 Python 문법</strong></span>
+    <button class="mobile-toc-toggle" id="tocToggle" type="button">목차 펼치기 ▾</button>
+    <nav class="toc" id="tocNav">
+      <div class="group-label">01 · Linux CLI</div>
+      <ol>
+        <li><a href="#sec-a"><span class="letter">A</span>프롬프트 읽기</a></li>
+        <li><a href="#sec-b"><span class="letter">B</span>파일 · 디렉터리</a></li>
+        <li><a href="#sec-c"><span class="letter">C</span>권한 · 원격 · 패키지</a></li>
+      </ol>
+      <div class="group-label">02 · Python 기초</div>
+      <ol>
+        <li><a href="#sec-d"><span class="letter">D</span>데이터 타입 · 출력</a></li>
+        <li><a href="#sec-e"><span class="letter">E</span>List · Comprehension</a></li>
+        <li><a href="#sec-f"><span class="letter">F</span>Enumerate &amp; Zip</a></li>
+        <li><a href="#sec-g"><span class="letter">G</span>Dict · JSON · YAML</a></li>
+      </ol>
+      <div class="group-label">03 · NumPy</div>
+      <ol>
+        <li><a href="#sec-h"><span class="letter">H</span>배열 · dtype</a></li>
+        <li><a href="#sec-i"><span class="letter">I</span>Indexing · axis</a></li>
+        <li><a href="#sec-j"><span class="letter">J</span>Boolean · 정규화</a></li>
+      </ol>
+    <div class="group-label">04 · 정답 코드</div>
+      <ol>
+        <li><a href="#sec-k"><span class="letter">K</span>실습 정답 코드</a></li>
+      </ol>
+    </nav>
+  </aside>
+
+  <main>
+    <header class="hero">
+      <span class="eyebrow">01_Linux-and-Python.ipynb 기반 정리</span>
+      <h1>기초 Linux CLI 및 Python 문법</h1>
+      <p class="sub">Jetson 위에서 개발하려면 터미널로 파일을 다루고 원격 접속하고 패키지를 깔 줄 알아야 합니다.
+      여기에 이후 모든 세션의 바탕이 되는 Python 문법과 NumPy 배열 감각을 함께 정리했습니다.</p>
+      <div class="stage-row">
+        <div class="stage-chip"><span class="n">1</span> <b>Linux CLI</b>&nbsp;이동 · 파일 · 권한 · SSH</div>
+        <div class="stage-chip"><span class="n">2</span> <b>Python</b>&nbsp;List · Dict · JSON/YAML</div>
+        <div class="stage-chip"><span class="n">3</span> <b>NumPy</b>&nbsp;axis · Boolean · 정규화</div>
+      </div>
+    </header>
+
+    <!-- A -->
+    <section class="chapter" id="sec-a">
+      <div class="chapter-head">
+        <span class="big-letter">A</span>
+        <div><h2>프롬프트 읽기</h2><span class="stage-tag">터미널이 이미 알려주는 정보</span></div>
+      </div>
+      <div class="compare">
+        <div class="box pos"><h4>터미널 (Terminal)</h4><ul><li>명령어를 <b>입력하는 창</b></li></ul></div>
+        <div class="box pos"><h4>셸 (Shell)</h4><ul><li>명령어를 <b>해석하고 실행</b>하는 프로그램 (bash 등)</li></ul></div>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">prompt</span><span>매번 보지만 읽어본 적은 없는 한 줄</span></div>
+        <pre><code>user_name@host_name:~/parent_directory/current_directory$</code></pre>
+      </div>
+      <table class="kv-table">
+        <tr><th>기호</th><th>의미</th></tr>
+        <tr><td><code>user_name</code></td><td>현재 로그인한 사용자 이름</td></tr>
+        <tr><td><code>@</code></td><td>사용자와 컴퓨터를 구분하는 표시</td></tr>
+        <tr><td><code>host_name</code></td><td>현재 접속한 컴퓨터(호스트) 이름</td></tr>
+        <tr><td><code>~</code></td><td>사용자의 <b>home 디렉터리</b></td></tr>
+        <tr><td><code>$</code></td><td>일반 사용자 권한 (<code>#</code>은 <b>관리자 권한</b>)</td></tr>
+      </table>
+      <div class="takeaway"><span class="mark">POINT</span><p>SSH로 Jetson에 접속했는지 헷갈릴 땐 <code class="inline">@</code> 뒤의 <b>host_name</b>을 보면 된다. <code class="inline">$</code>가 <code class="inline">#</code>으로 바뀌어 있다면 <b>root 권한</b>으로 무언가를 하고 있다는 뜻이니 특히 조심할 것.</p></div>
+    </section>
+
+    <!-- B -->
+    <section class="chapter" id="sec-b">
+      <div class="chapter-head">
+        <span class="big-letter">B</span>
+        <div><h2>파일 · 디렉터리 명령</h2><span class="stage-tag">약자를 알면 안 외워도 된다</span></div>
+      </div>
+      <table class="kv-table">
+        <tr><th>명령</th><th>약자</th><th>하는 일</th></tr>
+        <tr><td><code>cd 경로</code></td><td>change directory</td><td>디렉터리 이동</td></tr>
+        <tr><td><code>cd</code></td><td>—</td><td>인자 없이 쓰면 <b>홈 디렉터리로</b></td></tr>
+        <tr><td><code>cd ..</code></td><td>—</td><td>상위 디렉터리로</td></tr>
+        <tr><td><code>pwd</code></td><td>print working directory</td><td>현재 위치 확인</td></tr>
+        <tr><td><code>ls</code></td><td>list</td><td>파일 목록</td></tr>
+        <tr><td><code>ls -a</code></td><td>list -all</td><td><b>숨김 파일 포함</b> 전체</td></tr>
+        <tr><td><code>mkdir 이름</code></td><td>make directory</td><td>폴더 생성</td></tr>
+        <tr><td><code>mkdir -p a/b</code></td><td>-parent</td><td><b>상위 폴더까지</b> 한 번에 생성</td></tr>
+        <tr><td><code>touch 파일</code></td><td>—</td><td>빈 파일 생성</td></tr>
+        <tr><td><code>cp 원본 사본</code></td><td>copy</td><td>파일 복사</td></tr>
+        <tr><td><code>mv 원본 대상</code></td><td>move</td><td>파일 이동 (<b>이름 변경도 이것</b>)</td></tr>
+        <tr><td><code>rm 파일</code></td><td>remove</td><td>파일 삭제</td></tr>
+        <tr><td><code>rm -r 폴더</code></td><td>-recursive</td><td>폴더와 내부 전부 삭제</td></tr>
+        <tr><td><code>rmdir 폴더</code></td><td>remove directory</td><td><b>빈 폴더만</b> 삭제</td></tr>
+      </table>
+      <div class="takeaway"><span class="mark">⚠ 위험</span><p>Linux의 <code class="inline">rm</code>에는 <b>휴지통이 없다</b>. <code class="inline">rm -r</code>은 되돌릴 수 없으므로 실행 전에 <code class="inline">pwd</code>와 <code class="inline">ls</code>로 <b>지금 어디에 있고 무엇을 지우는지</b> 반드시 확인할 것. <code class="inline">rmdir</code>이 비어 있을 때만 동작하는 건 오히려 안전장치다.</p></div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">echo</span><span>출력 · 파일 저장 · 리다이렉션</span></div>
+        <pre><code>echo hi
+echo <span class="tok-str">"hi"</span>
+echo <span class="tok-str">$USER</span>              <span class="tok-com"># 환경 변수 값 출력</span>
+
+echo <span class="tok-str">"hi"</span> &gt; test.txt     <span class="tok-com"># &gt;  덮어쓰기 (기존 내용 삭제!)</span>
+echo <span class="tok-str">"hello"</span> &gt; test.txt  <span class="tok-com"># 앞의 "hi"는 사라진다</span>
+echo <span class="tok-str">"again"</span> &gt;&gt; test.txt <span class="tok-com"># &gt;&gt; 이어쓰기 (덧붙임)</span></code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">POINT</span><p><code class="inline">&gt;</code>는 <b>덮어쓰기</b>, <code class="inline">&gt;&gt;</code>는 <b>이어쓰기</b>. 하나 차이로 파일 내용이 통째로 날아간다. 04 세션에서 <code class="inline">tegrastats | grep "RAM"</code>처럼 쓰는 <code class="inline">|</code>(파이프)도 같은 계열 — <b>출력의 방향을 바꾸는 기호</b>들이다.</p></div>
+    </section>
+
+    <!-- C -->
+    <section class="chapter" id="sec-c">
+      <div class="chapter-head">
+        <span class="big-letter">C</span>
+        <div><h2>권한 · 원격 · 패키지</h2><span class="stage-tag">Jetson을 원격으로 다루기 위한 최소한</span></div>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">chmod</span><span>change mode — 권한 변경</span></div>
+        <pre><code>chmod +x file_name     <span class="tok-com"># 실행(execute) 권한 부여</span>
+chmod -x file_name     <span class="tok-com"># 실행 권한 제거</span>
+chmod +w file_name     <span class="tok-com"># 쓰기(write) 권한 부여</span>
+chmod <span class="tok-num">644</span> file_name    <span class="tok-com"># 숫자 방식: 소유자 rw- / 그룹 r-- / 기타 r--</span>
+chmod <span class="tok-num">444</span> file_name    <span class="tok-com"># 전부 읽기 전용</span></code></pre>
+      </div>
+      <div class="callout">
+        <span class="label">숫자 권한 읽는 법 — 자리 3개, 각 자리는 합</span>
+        <ul>
+          <li>세 자리는 순서대로 <b>소유자 · 그룹 · 기타 사용자</b></li>
+          <li><span class="k">4</span> 읽기(r) &nbsp; <span class="k">2</span> 쓰기(w) &nbsp; <span class="k">1</span> 실행(x)</li>
+          <li>그래서 <code class="inline">6 = 4+2</code>(읽기+쓰기), <code class="inline">7 = 4+2+1</code>(전부)</li>
+          <li><code class="inline">644</code> = 소유자만 수정 가능, 나머지는 읽기만 — 일반 파일의 기본값</li>
+        </ul>
+      </div>
+
+      <table class="kv-table">
+        <tr><th>명령</th><th>하는 일</th><th>비고</th></tr>
+        <tr><td><code>nano 파일</code></td><td>터미널 텍스트 편집기</td><td>GUI 없이 편집할 때</td></tr>
+        <tr><td><code>ping 8.8.8.8</code></td><td>네트워크 연결 확인</td><td><code>ping &lt;host&gt;.local</code>도 가능</td></tr>
+        <tr><td><code>hostname -I</code></td><td>내 IP 주소 확인</td><td>SSH 접속 전에 필요</td></tr>
+        <tr><td><code>ssh user@host</code></td><td>원격 컴퓨터 접속</td><td><b>Jetson 개발의 기본</b></td></tr>
+        <tr><td><code>sudo 명령</code></td><td>관리자(root) 권한으로 실행</td><td>필요할 때만</td></tr>
+      </table>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">apt</span><span>가장 많이 쓰게 될 sudo 3종</span></div>
+        <pre><code>sudo apt update                   <span class="tok-com"># 패키지 '목록'을 갱신 (설치는 안 함)</span>
+sudo apt upgrade                  <span class="tok-com"># 설치된 패키지를 최신 버전으로</span>
+sudo apt install &lt;package_name&gt;   <span class="tok-com"># 패키지 설치</span></code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">헷갈리는 지점</span><p><code class="inline">apt update</code>는 <b>목록만 갱신</b>하고 실제 설치는 하지 않는다. <code class="inline">upgrade</code> 전에 <code class="inline">update</code>를 먼저 하지 않으면 <b>낡은 목록을 보고</b> 업그레이드하게 된다. 그래서 항상 <code class="inline">update → upgrade</code> 순서다.</p></div>
+    </section>
+
+    <!-- D -->
+    <section class="chapter" id="sec-d">
+      <div class="chapter-head">
+        <span class="big-letter">D</span>
+        <div><h2>데이터 타입 · 출력</h2><span class="stage-tag">동적 타이핑과 f-string</span></div>
+      </div>
+      <div class="prose"><p>Python은 변수에 타입을 명시하지 않고 <b>대입한 값으로 타입이 정해진다</b>(동적 타이핑). 타입이 다르면 문자열 연결(<code class="inline">+</code>)이 실패하므로 변환이 필요하다.</p></div>
+      <table class="kv-table">
+        <tr><th>방법</th><th>예시</th><th>특징</th></tr>
+        <tr><td>콤마 구분</td><td><code>print("나이:", age)</code></td><td>자동 공백 삽입, 형변환 불필요</td></tr>
+        <tr><td>문자열 연결</td><td><code>print("나이: " + str(age))</code></td><td><b>반드시 <code>str()</code> 필요</b></td></tr>
+        <tr><td>f-string</td><td><code>print(f"나이: {age}세")</code></td><td><b>가장 권장</b> — 중괄호에 식을 그대로</td></tr>
+      </table>
+      <div class="code-card">
+        <div class="bar"><span class="fn">print_formats.py</span><span>end= 와 포맷 스펙</span></div>
+        <pre><code>height = <span class="tok-num">178.31754081</span>
+
+print(<span class="tok-str">"이름:"</span>, name, end=<span class="tok-str">", "</span>)              <span class="tok-com"># end 기본값은 "\n" — 줄바꿈 없이 이어짐</span>
+print(<span class="tok-str">f"키(m): {height/100:.2f}m"</span>)          <span class="tok-com"># :.2f → 소수점 2자리 고정</span>
+print(<span class="tok-fn">str</span>(height)[<span class="tok-num">0</span>:<span class="tok-num">5</span>] + <span class="tok-str">"cm"</span>)              <span class="tok-com"># 문자열로 바꾼 뒤 앞 5글자만 슬라이싱</span></code></pre>
+      </div>
+      <div class="callout">
+        <span class="label">연습문제 — "0.8825"를 88점으로</span>
+        <ul>
+          <li><code class="inline">int("0.8825")</code>는 <b>에러</b>다. 소수점 문자열은 <code class="inline">float()</code>를 먼저 거쳐야 한다</li>
+          <li><code class="inline">int(float("0.8825") * 100)</code> → <code class="inline">88</code></li>
+          <li><code class="inline">int()</code>는 반올림이 아니라 <b>버림</b>: <code class="inline">int(88.25)</code> → <code class="inline">88</code></li>
+        </ul>
+      </div>
+      <div class="takeaway"><span class="mark">함정</span><p><code class="inline">"20" + 5</code> → <b>TypeError</b>. 그런데 <code class="inline">"20" * 3</code>은 에러가 아니라 <code class="inline">"202020"</code>(반복)이다. 문자열 숫자를 계산에 쓰려면 반드시 <code class="inline">int()</code> / <code class="inline">float()</code>로 변환할 것.</p></div>
+    </section>
+
+    <!-- E -->
+    <section class="chapter" id="sec-e">
+      <div class="chapter-head">
+        <span class="big-letter">E</span>
+        <div><h2>List · Comprehension</h2><span class="stage-tag">슬라이싱 감각이 이후 전부에 쓰인다</span></div>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">slicing.py</span><span>[start : stop : step] — stop은 미포함</span></div>
+        <pre><code>lst = [<span class="tok-str">"0"</span>,<span class="tok-str">"1"</span>,<span class="tok-str">"2"</span>,<span class="tok-str">"3"</span>,<span class="tok-str">"4"</span>,<span class="tok-str">"5"</span>,<span class="tok-str">"6"</span>,<span class="tok-str">"7"</span>,<span class="tok-str">"8"</span>,<span class="tok-str">"9"</span>]
+
+lst[<span class="tok-num">0</span>]        <span class="tok-com"># '0'  — 첫 원소</span>
+lst[<span class="tok-num">-1</span>]       <span class="tok-com"># '9'  — 마지막 원소 (음수는 뒤에서부터)</span>
+lst[<span class="tok-num">10</span>]       <span class="tok-com"># IndexError — 길이 10이면 유효 인덱스는 0~9</span>
+
+lst[<span class="tok-num">0</span>:<span class="tok-num">3</span>]      <span class="tok-com"># ['0','1','2'] — stop(3)은 포함되지 않는다</span>
+lst[:<span class="tok-num">3</span>]       <span class="tok-com"># 처음부터</span>
+lst[<span class="tok-num">3</span>:]       <span class="tok-com"># 끝까지</span>
+lst[:]        <span class="tok-com"># 전체 (얕은 복사)</span>
+lst[<span class="tok-num">0</span>:<span class="tok-num">5</span>:<span class="tok-num">2</span>]    <span class="tok-com"># ['0','2','4'] — step 2</span>
+lst[::<span class="tok-num">-1</span>]     <span class="tok-com"># 역순 뒤집기</span></code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">왜 중요한가</span><p>이 슬라이싱 문법이 <b>02 세션의 이미지 crop</b>(<code class="inline">image[0:100, 0:50]</code>), <b>03 세션의 CuPy 배열 연산</b>(<code class="inline">image[:, :width-shift]</code>)에 그대로 쓰인다. <code class="inline">stop</code>이 미포함이라는 규칙 하나가 전부의 바탕이다.</p></div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">comprehension.py</span><span>중첩 반복문을 한 줄로</span></div>
+        <pre><code><span class="tok-com"># 일반 반복문</span>
+my_list = []
+<span class="tok-kw">for</span> i <span class="tok-kw">in</span> <span class="tok-fn">range</span>(<span class="tok-num">10</span>):
+    my_list.append(i)
+
+<span class="tok-com"># List Comprehension — 같은 결과</span>
+my_list = [i <span class="tok-kw">for</span> i <span class="tok-kw">in</span> <span class="tok-fn">range</span>(<span class="tok-num">10</span>)]
+
+<span class="tok-com"># 중첩: 바깥 for가 '먼저' 온다 (반복문 쓰는 순서 그대로)</span>
+my_arr = [[i, j] <span class="tok-kw">for</span> i <span class="tok-kw">in</span> <span class="tok-fn">range</span>(<span class="tok-num">10</span>) <span class="tok-kw">for</span> j <span class="tok-kw">in</span> <span class="tok-fn">range</span>(<span class="tok-num">10</span>)]
+
+<span class="tok-com"># 조건 필터 — 2차원 리스트를 평탄화하며 거르기</span>
+scores = [[<span class="tok-num">45</span>,<span class="tok-num">88</span>,<span class="tok-num">92</span>], [<span class="tok-num">30</span>,<span class="tok-num">75</span>,<span class="tok-num">60</span>], [<span class="tok-num">95</span>,<span class="tok-num">40</span>,<span class="tok-num">50</span>]]
+passed = [score <span class="tok-kw">for</span> row <span class="tok-kw">in</span> scores <span class="tok-kw">for</span> score <span class="tok-kw">in</span> row <span class="tok-kw">if</span> score &gt;= <span class="tok-num">50</span>]
+<span class="tok-com"># [88, 92, 75, 60, 95, 50]</span></code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">헷갈리는 지점</span><p>중첩 comprehension에서 <code class="inline">for</code>의 순서는 <b>일반 반복문을 쓰는 순서와 동일</b>하다 — <code class="inline">for row in scores</code>(바깥)가 먼저, <code class="inline">for score in row</code>(안쪽)가 나중. 반면 맨 앞의 <b>표현식</b>(<code class="inline">score</code>)은 가장 안쪽에서 꺼내는 값이라 순서가 뒤집혀 보여 헷갈린다.</p></div>
+    </section>
+
+    <!-- F -->
+    <section class="chapter" id="sec-f">
+      <div class="chapter-head">
+        <span class="big-letter">F</span>
+        <div><h2>Enumerate &amp; Zip</h2><span class="stage-tag">인덱스와 짝짓기</span></div>
+      </div>
+      <div class="compare">
+        <div class="box pos"><h4>enumerate</h4><ul><li><b>인덱스 + 값</b>을 함께</li><li><code class="inline">start=1</code>로 시작 번호 변경</li></ul></div>
+        <div class="box pos"><h4>zip</h4><ul><li>두 리스트를 <b>짝지어</b> 순회</li><li>짧은 쪽 길이에 맞춰 멈춤</li></ul></div>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">enumerate_zip.py</span><span>조합하면 이렇게 된다</span></div>
+        <pre><code>students = [<span class="tok-str">"짱구"</span>, <span class="tok-str">"철수"</span>, <span class="tok-str">"맹구"</span>]
+scores   = [<span class="tok-num">85</span>, <span class="tok-num">92</span>, <span class="tok-num">78</span>]
+
+<span class="tok-kw">for</span> idx, name <span class="tok-kw">in</span> <span class="tok-fn">enumerate</span>(students, start=<span class="tok-num">1</span>):
+    print(<span class="tok-str">f"{idx}번 학생: {name}"</span>)
+
+<span class="tok-kw">for</span> name, score <span class="tok-kw">in</span> <span class="tok-fn">zip</span>(students, scores):
+    print(<span class="tok-str">f"{name}의 점수: {score}점"</span>)
+
+<span class="tok-com"># 조합 — zip의 결과를 튜플로 '한 번 더 풀어야' 한다</span>
+<span class="tok-kw">for</span> idx, (name, score) <span class="tok-kw">in</span> <span class="tok-fn">enumerate</span>(<span class="tok-fn">zip</span>(students, scores), start=<span class="tok-num">1</span>):
+    <span class="tok-kw">if</span> score &gt;= <span class="tok-num">80</span>:
+        print(<span class="tok-str">f"{idx}번 {name} 학생 (점수: {score}점)"</span>)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">POINT</span><p><code class="inline">enumerate(zip(a, b))</code>는 <code class="inline">(idx, (name, score))</code> 형태를 준다. 그래서 <b>괄호로 한 번 더 감싸</b> 풀어야 한다 — <code class="inline">for idx, name, score in ...</code>으로 쓰면 에러다.</p></div>
+    </section>
+
+    <!-- G -->
+    <section class="chapter" id="sec-g">
+      <div class="chapter-head">
+        <span class="big-letter">G</span>
+        <div><h2>Dictionary · JSON · YAML</h2><span class="stage-tag">설정 파일을 다루는 두 형식</span></div>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">dict_json_yaml.py</span><span>같은 딕셔너리, 두 가지 저장 형식</span></div>
+        <pre><code>student_info = {<span class="tok-str">"name"</span>: <span class="tok-str">"맹구"</span>, <span class="tok-str">"age"</span>: <span class="tok-num">21</span>, <span class="tok-str">"major"</span>: <span class="tok-str">"컴퓨터공학"</span>}
+
+<span class="tok-kw">for</span> key, value <span class="tok-kw">in</span> student_info.items():      <span class="tok-com"># .items()로 key·value 동시에</span>
+    print(<span class="tok-str">f"{key}: {value}"</span>)
+
+student_info[<span class="tok-str">"gpa"</span>] = <span class="tok-num">3.8</span>                    <span class="tok-com"># 없는 key에 대입 = 추가</span>
+student_info[<span class="tok-str">"languages"</span>] = [<span class="tok-str">"Python"</span>, <span class="tok-str">"C++"</span>]   <span class="tok-com"># 값에는 리스트도 가능</span>
+
+<span class="tok-kw">with</span> <span class="tok-fn">open</span>(<span class="tok-str">"맹구_개인정보.json"</span>, <span class="tok-str">"w"</span>, encoding=<span class="tok-str">"utf-8"</span>) <span class="tok-kw">as</span> f:
+    json.dump(student_info, f, ensure_ascii=<span class="tok-fn">False</span>, indent=<span class="tok-num">4</span>)
+
+<span class="tok-kw">with</span> <span class="tok-fn">open</span>(<span class="tok-str">"맹구_개인정보.yaml"</span>, <span class="tok-str">"w"</span>, encoding=<span class="tok-str">"utf-8"</span>) <span class="tok-kw">as</span> f:
+    yaml.safe_dump(student_info, f, allow_unicode=<span class="tok-fn">True</span>, default_flow_style=<span class="tok-fn">False</span>)</code></pre>
+      </div>
+      <table class="kv-table">
+        <tr><th>인자</th><th>없으면</th></tr>
+        <tr><td><code>ensure_ascii=False</code></td><td>한글이 <code>맹구</code>처럼 <b>유니코드 이스케이프</b>로 저장된다</td></tr>
+        <tr><td><code>allow_unicode=True</code></td><td>YAML에서도 같은 문제 — 한글이 깨져 보인다</td></tr>
+        <tr><td><code>indent=4</code></td><td>JSON이 한 줄로 붙어 나와 읽기 어렵다</td></tr>
+        <tr><td><code>default_flow_style=False</code></td><td>YAML이 <code>{a: 1, b: 2}</code> 형태로 나온다 (블록 형식이 읽기 좋다)</td></tr>
+      </table>
+      <div class="takeaway"><span class="mark">왜 배우나</span><p>YAML은 04 세션에서 <b>INT8 Calibration 데이터셋 설정</b>(<code class="inline">calibration.yaml</code>)을 만들 때 그대로 쓴다. <code class="inline">yaml.safe_dump</code>의 <code class="inline">safe</code>는 <b>임의 Python 객체 실행을 막는다</b>는 뜻 — 신뢰할 수 없는 YAML을 읽을 땐 반드시 <code class="inline">safe_load</code>를 쓸 것.</p></div>
+    </section>
+
+    <!-- H -->
+    <section class="chapter" id="sec-h">
+      <div class="chapter-head">
+        <span class="big-letter">H</span>
+        <div><h2>NumPy 배열 · dtype</h2><span class="stage-tag">이후 모든 세션의 기본 자료구조</span></div>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">dtype.py</span><span>astype — 타입 변환</span></div>
+        <pre><code>str_arr = np.array([<span class="tok-str">"1.5"</span>, <span class="tok-str">"2.8"</span>, <span class="tok-str">"3.1"</span>])     <span class="tok-com"># 문자열 배열</span>
+
+float_arr = str_arr.astype(np.float64)          <span class="tok-com"># 숫자 배열로 변환</span>
+print(float_arr.dtype)                          <span class="tok-com"># float64</span>
+
+<span class="tok-com"># 체이닝도 가능</span>
+float_arr = np.array([<span class="tok-str">"1.5"</span>, <span class="tok-str">"2.8"</span>]).astype(np.float64)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">앞으로 계속 나온다</span><p><code class="inline">.astype()</code>은 이후 세션의 단골이다 — 02에서 <code class="inline">image.astype(np.float32) / 255.</code>(0~1 정규화), 03에서 딥러닝 입력을 <code class="inline">float32</code>로 맞출 때. 딥러닝이 <code class="inline">float64</code>가 아니라 <b><code class="inline">float32</code></b>를 쓰는 이유는 메모리가 절반이고 GPU에서 훨씬 빠르기 때문이다.</p></div>
+    </section>
+
+    <!-- I -->
+    <section class="chapter" id="sec-i">
+      <div class="chapter-head">
+        <span class="big-letter">I</span>
+        <div><h2>Indexing · axis</h2><span class="stage-tag">axis를 이해하면 절반은 끝난다</span></div>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">indexing.py</span><span>2차원은 [행, 열] — 콤마로 구분</span></div>
+        <pre><code>grid = np.array([[<span class="tok-num">10</span>,<span class="tok-num">20</span>,<span class="tok-num">30</span>],
+                 [<span class="tok-num">40</span>,<span class="tok-num">50</span>,<span class="tok-num">60</span>],
+                 [<span class="tok-num">70</span>,<span class="tok-num">80</span>,<span class="tok-num">90</span>]])
+
+grid[:<span class="tok-num">2</span>, <span class="tok-num">1</span>:]      <span class="tok-com"># 우측 상단 2x2 → [[20,30],[50,60]]</span>
+<span class="tok-com">#    ↑     ↑</span>
+<span class="tok-com">#   행    열   ← 리스트와 달리 [행][열]이 아니라 [행, 열]</span>
+
+grid.flatten()     <span class="tok-com"># (3,3) → (9,) 1차원으로 펴기</span></code></pre>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">axis.py</span><span>axis는 '없어지는 축'이다</span></div>
+        <pre><code><span class="tok-com"># [row: 학생, column: 과목]</span>
+scores = np.array([
+    [<span class="tok-num">83</span>, <span class="tok-num">92</span>, <span class="tok-num">100</span>],   <span class="tok-com"># 0번 학생</span>
+    [<span class="tok-num">76</span>, <span class="tok-num">63</span>,  <span class="tok-num">58</span>],   <span class="tok-com"># 1번 학생</span>
+    [<span class="tok-num">91</span>, <span class="tok-num">99</span>,  <span class="tok-num">84</span>],   <span class="tok-com"># 2번 학생</span>
+])
+
+np.mean(scores, axis=<span class="tok-num">1</span>)   <span class="tok-com"># 학생별 평균 — 과목(열) 축이 사라짐 → 결과 3개</span>
+np.mean(scores, axis=<span class="tok-num">0</span>)   <span class="tok-com"># 과목별 평균 — 학생(행) 축이 사라짐 → 결과 3개</span></code></pre>
+      </div>
+      <div class="callout">
+        <span class="label">axis 헷갈릴 때 이렇게 생각한다</span>
+        <ul>
+          <li><code class="inline">axis=0</code>은 <b>행 방향으로 훑으며 행 축을 뭉갠다</b> → <b>열별</b> 결과</li>
+          <li><code class="inline">axis=1</code>은 <b>열 방향으로 훑으며 열 축을 뭉갠다</b> → <b>행별</b> 결과</li>
+          <li>즉 <b>axis에 지정한 축이 사라진다</b>고 외우면 헷갈리지 않는다</li>
+          <li><code class="inline">(3,3)</code> 배열에 <code class="inline">axis=1</code>을 쓰면 결과는 <code class="inline">(3,)</code></li>
+        </ul>
+      </div>
+      <div class="takeaway"><span class="mark">앞으로 계속 나온다</span><p>03 세션의 <code class="inline">logits.argmax(dim=1)</code>이 정확히 같은 개념이다 — logits shape이 <code class="inline">[Batch, 10]</code>일 때 <b>클래스 축(1)</b>을 뭉개 배치별 예측 하나씩을 얻는다. PyTorch는 <code class="inline">axis</code> 대신 <code class="inline">dim</code>이라고 부를 뿐이다.</p></div>
+    </section>
+
+    <!-- J -->
+    <section class="chapter" id="sec-j">
+      <div class="chapter-head">
+        <span class="big-letter">J</span>
+        <div><h2>Boolean 배열 · 정규화</h2><span class="stage-tag">조건을 배열로 다루기</span></div>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">boolean_mask.py</span><span>비교 연산이 배열을 만든다</span></div>
+        <pre><code>scores = np.array([<span class="tok-num">85</span>, <span class="tok-num">90</span>, <span class="tok-num">100</span>, <span class="tok-num">60</span>, <span class="tok-num">90</span>, <span class="tok-num">75</span>, <span class="tok-num">90</span>])
+
+is_ninety = (scores == <span class="tok-num">90</span>)      <span class="tok-com"># [F,T,F,F,T,F,T] ← Boolean 배열</span>
+np.where(scores == <span class="tok-num">90</span>)         <span class="tok-com"># 조건을 만족하는 '인덱스' 반환</span>
+
+(scores == <span class="tok-num">90</span>).sum()          <span class="tok-com"># 3  ← True=1이라 그냥 더하면 '개수'</span>
+(scores &gt;= <span class="tok-num">80</span>).sum()          <span class="tok-com"># 5</span></code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">핵심 아이디어</span><p><code class="inline">True</code>는 <code class="inline">1</code>, <code class="inline">False</code>는 <code class="inline">0</code>이므로 <b>Boolean 배열의 합 = 조건을 만족하는 개수</b>다. 03 세션의 정확도 계산 <code class="inline">(predictions == labels).sum().item()</code>이 정확히 이 패턴이다.</p></div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">normalize.py</span><span>두 가지 '정규화'는 다른 것이다</span></div>
+        <pre><code>np_arr = np.array([<span class="tok-num">1</span>, <span class="tok-num">2</span>, <span class="tok-num">3</span>, <span class="tok-num">4</span>, <span class="tok-num">5</span>])
+
+<span class="tok-com"># ① 합을 1로 만들기 (확률 분포처럼)</span>
+np_arr / np_arr.sum()      <span class="tok-com"># [0.067, 0.133, 0.2, 0.267, 0.333]</span>
+
+<span class="tok-com"># ② 범위를 0.0 ~ 1.0으로 만들기 (Min-Max 정규화)</span>
+arr = np_arr.astype(np.float32)
+arr = arr - arr.min()      <span class="tok-com"># 최솟값을 0으로 내리고</span>
+arr = arr / arr.max()      <span class="tok-com"># 최댓값으로 나눠 1로 맞춘다</span>
+<span class="tok-com"># [0.0, 0.25, 0.5, 0.75, 1.0]</span></code></pre>
+      </div>
+      <div class="callout">
+        <span class="label">둘 다 "정규화"지만 목적이 다르다</span>
+        <ul>
+          <li><b>합을 1로</b> — 03 세션의 잔상 효과 가중치(<code class="inline">weights_np /= np.sum(weights_np)</code>), Smoothing 필터. <b>전체 밝기를 유지</b>하려고</li>
+          <li><b>범위를 0~1로</b> — 이미지 전처리(<code class="inline">/ 255.</code>). <b>입력 스케일을 맞춰</b> 수치 안정성을 얻으려고</li>
+          <li>순서 주의: <code class="inline">min</code>을 빼기 <b>전에</b> <code class="inline">max</code>로 나누면 최솟값이 0이 되지 않는다</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================= K : ANSWER ================= -->
+    <section class="chapter" id="sec-k">
+      <div class="chapter-head">
+        <span class="big-letter">K</span>
+        <div><h2>실습 정답 코드</h2><span class="stage-tag">[ANSWER]_01_Linux-and-Python.ipynb</span></div>
+      </div>
+      <div class="prose"><p>본문 각 절의 <code class="inline">TODO</code>와 Section Project의 공식 정답입니다.</p></div>
+
+      <h3 style="font-size:16px;margin:26px 0 6px;">본문 TODO <span style="color:var(--ink-faint);font-weight:400;">(셀 32 · 49 · 57 · 79 · 80)</span></h3>
+      <div class="code-card">
+        <div class="bar"><span class="fn">todos.py</span><span>형변환 · Comprehension · zip · 정규화</span></div>
+        <pre><code><span class="tok-com"># 32) "0.8825" → 88점 : float를 먼저 거쳐야 한다</span>
+score_int = <span class="tok-fn">int</span>(<span class="tok-fn">float</span>(score_str) * <span class="tok-num">100</span>)
+print(<span class="tok-str">"최종 점수: "</span> + <span class="tok-fn">str</span>(score_int) + <span class="tok-str">"점"</span>)
+
+<span class="tok-com"># 49) 2차원 리스트를 평탄화하며 50점 이상만</span>
+passed_scores = [score <span class="tok-kw">for</span> row <span class="tok-kw">in</span> scores <span class="tok-kw">for</span> score <span class="tok-kw">in</span> row <span class="tok-kw">if</span> score &gt;= <span class="tok-num">50</span>]
+
+<span class="tok-com"># 57) enumerate + zip 조합 — zip 결과를 괄호로 한 번 더 푼다</span>
+<span class="tok-kw">for</span> idx, (name, score) <span class="tok-kw">in</span> <span class="tok-fn">enumerate</span>(<span class="tok-fn">zip</span>(students, scores), start=<span class="tok-num">1</span>):
+    <span class="tok-kw">if</span> score &gt;= <span class="tok-num">80</span>:
+        print(<span class="tok-str">f"{idx}번 {name} 학생 (점수: {score}점)"</span>)
+
+<span class="tok-com"># 79) 합이 1이 되도록 정규화</span>
+np_arr_normalized = np_arr / np_arr.sum()
+
+<span class="tok-com"># 80) 범위를 0.0 ~ 1.0으로 (Min-Max) — min을 먼저 빼야 한다</span>
+np_arr_float32 = np_arr.astype(np.float32)
+np_arr_shifted = np_arr_float32 - np_arr_float32.min()
+np_arr_final   = np_arr_shifted / np_arr_shifted.max()</code></pre>
+      </div>
+
+      <h3 style="font-size:16px;margin:30px 0 6px;">Section Project — 학생 성적 분석 <span style="color:var(--ink-faint);font-weight:400;">(셀 89)</span></h3>
+      <div class="prose"><p>5명 학생의 <code class="inline">"studentID_name"</code> 명단과 3과목 점수 2차원 배열이 주어집니다. 이 절의 모든 도구(슬라이싱 · comprehension · <code class="inline">flatten</code> · Boolean · <code class="inline">axis</code> · <code class="inline">argmax</code>)가 한 번에 쓰입니다.</p></div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">student_analysis.py</span><span>1~6번 분석</span></div>
+        <pre><code><span class="tok-com"># 1. 이름만 추출 — "zg0505_짱구" 에서 앞 7글자를 잘라낸다</span>
+student_names = [name[<span class="tok-num">7</span>:] <span class="tok-kw">for</span> name <span class="tok-kw">in</span> raw_students]
+
+<span class="tok-com"># 2. 모든 성적을 1차원으로 (5x3 → 15개)</span>
+all_scores = raw_scores.flatten()
+
+<span class="tok-com"># 3. 85점 이상 개수 — Boolean 배열의 합 = 개수</span>
+over_85 = (all_scores &gt;= <span class="tok-num">85</span>).sum()
+
+<span class="tok-com"># 4. 학생별 평균 — 과목(열) 축을 뭉갠다</span>
+student_means = np.mean(raw_scores, axis=<span class="tok-num">1</span>)
+
+<span class="tok-kw">for</span> idx, (name, mean) <span class="tok-kw">in</span> <span class="tok-fn">enumerate</span>(<span class="tok-fn">zip</span>(student_names, student_means)):
+    sep = <span class="tok-str">", "</span> <span class="tok-kw">if</span> idx &lt; <span class="tok-fn">len</span>(student_names) - <span class="tok-num">1</span> <span class="tok-kw">else</span> <span class="tok-str">"\n"</span>
+    print(<span class="tok-str">f"{name} {mean:.1f}점"</span>, end=sep)
+
+<span class="tok-com"># 5. 평균 최고 학생 — argmax는 '인덱스'를 준다</span>
+top_student_idx  = np.argmax(student_means)
+top_student_name = student_names[top_student_idx]
+
+<span class="tok-com"># 6. 단일 과목 최고 점수 + 과목명 + 학생명</span>
+overall_max_score   = np.max(all_scores)
+overall_max_idx     = np.argmax(all_scores)                        <span class="tok-com"># 평탄화된 배열에서의 위치</span>
+overall_max_subject = subjects[overall_max_idx % <span class="tok-fn">len</span>(subjects)]      <span class="tok-com"># 나머지 → 열(과목)</span>
+overall_max_student = student_names[overall_max_idx // <span class="tok-fn">len</span>(subjects)]  <span class="tok-com"># 몫 → 행(학생)</span></code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">핵심 트릭 — 평탄화된 인덱스 되돌리기</span><p><code class="inline">flatten()</code>한 배열에서 <code class="inline">argmax</code>로 얻은 인덱스는 <b>1차원 위치</b>입니다. 원래 2차원 위치로 되돌리려면 과목 수(3)로 <b>나눈 몫이 행(학생)</b>, <b>나머지가 열(과목)</b>입니다.<br><br>예: 15개 중 7번째(<code class="inline">idx=7</code>) → <code class="inline">7 // 3 = 2</code>번 학생(맹구), <code class="inline">7 % 3 = 1</code>번 과목(수학). 정답 노트북은 <code class="inline">%</code>만 쓰고 <code class="inline">//</code> 부분이 중간에 잘려 있으니 직접 채워야 합니다.<br><br>NumPy에는 이걸 해주는 <code class="inline">np.unravel_index(idx, shape)</code>도 있습니다.</p></div>
+    </section>
+
+    <footer class="page-end">
+      원본: <code class="inline">01_Linux-and-Python.ipynb</code> · <code class="inline">[ANSWER]_01_Linux-and-Python.ipynb</code> (<code class="inline">linux-work</code> 브랜치) · Physical AI Vision-LLM 융합 시청각 멀티모달 시스템 세션 1 정리<br>
+      Section Project: 5명 학생의 <code class="inline">"studentID_name"</code> 명단과 3과목 점수 2차원 배열을 활용한 성적 분석
+    </footer>
+  </main>
+</div>
+
+<script>
+  (function(){
+    var toggle = document.getElementById('tocToggle');
+    var nav = document.getElementById('tocNav');
+    if(toggle){
+      toggle.addEventListener('click', function(){
+        nav.classList.toggle('open');
+        toggle.textContent = nav.classList.contains('open') ? '목차 접기 ▴' : '목차 펼치기 ▾';
+      });
+    }
+    var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a'));
+    var sections = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+    function onScroll(){
+      var pos = window.scrollY + 120;
+      var activeIdx = 0;
+      for(var i=0;i<sections.length;i++){
+        if(sections[i] && sections[i].offsetTop <= pos) activeIdx = i;
+      }
+      links.forEach(function(a,i){ a.classList.toggle('active', i===activeIdx); });
+    }
+    document.addEventListener('scroll', onScroll, {passive:true});
+    onScroll();
+  })();
+</script>
+</body>
+</html>

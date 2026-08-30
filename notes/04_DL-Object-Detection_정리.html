@@ -1,0 +1,1206 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edge AI 객체 탐지 실습 노트</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;display=swap">
+
+<style>
+  :root{
+    --bg:#F1F3F1;
+    --surface:#FFFFFF;
+    --surface-2:#E7EBE8;
+    --surface-3:#DCE2DE;
+    --ink:#14181A;
+    --ink-soft:#55605C;
+    --ink-faint:#8A948F;
+    --border:#D5DBD7;
+    --accent:#C8631F;
+    --accent-soft:#F1E0CE;
+    --accent-ink:#FFFFFF;
+    --accent2:#227373;
+    --accent2-soft:#DCEAEA;
+    --red:#B23A32;
+    --code-kw:#8B4A9C;
+    --code-str:#2E7D46;
+    --code-com:#8A948F;
+    --code-fn:#1D6FB8;
+    --code-num:#B2622E;
+    --shadow: 0 1px 2px rgba(20,24,26,.06), 0 8px 24px -12px rgba(20,24,26,.18);
+    --radius: 10px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#14181A;
+      --surface:#1B2023;
+      --surface-2:#20272A;
+      --surface-3:#283130;
+      --ink:#E8EDE9;
+      --ink-soft:#9AA8A2;
+      --ink-faint:#657069;
+      --border:#313B38;
+      --accent:#E39150;
+      --accent-soft:#3A2A1B;
+      --accent-ink:#1A1006;
+      --accent2:#5FC2C0;
+      --accent2-soft:#17302F;
+      --red:#E07B72;
+      --code-kw:#C892D8;
+      --code-str:#7FCB93;
+      --code-com:#7C8983;
+      --code-fn:#7EB6E8;
+      --code-num:#E3A374;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14181A;
+    --surface:#1B2023;
+    --surface-2:#20272A;
+    --surface-3:#283130;
+    --ink:#E8EDE9;
+    --ink-soft:#9AA8A2;
+    --ink-faint:#657069;
+    --border:#313B38;
+    --accent:#E39150;
+    --accent-soft:#3A2A1B;
+    --accent-ink:#1A1006;
+    --accent2:#5FC2C0;
+    --accent2-soft:#17302F;
+    --red:#E07B72;
+    --code-kw:#C892D8;
+    --code-str:#7FCB93;
+    --code-com:#7C8983;
+    --code-fn:#7EB6E8;
+    --code-num:#E3A374;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"IBM Plex Sans","IBM Plex Sans KR",-apple-system,sans-serif;
+    font-size:16px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  a{ color:var(--accent2); text-decoration-thickness: 1.5px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, summary:focus-visible{
+    outline: 2.5px solid var(--accent2); outline-offset: 2px; border-radius:4px;
+  }
+
+  h1,h2,h3,h4{
+    font-family:"IBM Plex Sans Condensed","IBM Plex Sans KR",sans-serif;
+    font-weight:700;
+    text-wrap:balance;
+    margin:0;
+    letter-spacing:.1px;
+  }
+
+  .layout{
+    display:grid;
+    grid-template-columns: 250px minmax(0,1fr);
+    max-width:1180px;
+    margin:0 auto;
+    align-items:start;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+    padding:28px 14px 28px 20px;
+    border-right:1px solid var(--border);
+    scrollbar-width:thin;
+  }
+  .brand{
+    display:block;
+    font-family:"IBM Plex Sans Condensed",sans-serif;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-bottom:4px;
+  }
+  .brand strong{
+    display:block;
+    font-size:19px;
+    letter-spacing:0;
+    text-transform:none;
+    color:var(--ink);
+    margin-top:6px;
+    line-height:1.25;
+  }
+  nav.toc{ margin-top:26px; }
+  nav.toc .group-label{
+    font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--ink-faint); font-weight:600; padding:0 10px; margin:18px 0 6px;
+  }
+  nav.toc .group-label:first-child{ margin-top:0; }
+  nav.toc ol{ list-style:none; margin:0; padding:0; counter-reset:none; }
+  nav.toc a{
+    display:flex; align-items:baseline; gap:10px;
+    padding:6px 10px; border-radius:7px;
+    color:var(--ink-soft); text-decoration:none; font-size:14.5px;
+    transition:background .12s ease, color .12s ease;
+  }
+  nav.toc a:hover{ background:var(--surface-2); color:var(--ink); }
+  nav.toc a .letter{
+    font-family:"IBM Plex Mono",monospace; font-size:12.5px; font-weight:600;
+    color:var(--accent); width:1.1em; flex:none;
+  }
+  nav.toc a.active{ background:var(--accent-soft); color:var(--ink); }
+  nav.toc a.active .letter{ color:var(--accent); }
+
+  /* ---------- Main ---------- */
+  main{ padding:56px 44px 120px; min-width:0; }
+
+  header.hero{ max-width:660px; margin-bottom:54px; }
+  .eyebrow{
+    font-family:"IBM Plex Sans Condensed",sans-serif;
+    font-size:12.5px; letter-spacing:.11em; text-transform:uppercase;
+    color:var(--accent); font-weight:600; margin-bottom:14px; display:block;
+  }
+  header.hero h1{ font-size:38px; line-height:1.15; margin-bottom:16px; }
+  header.hero .sub{ color:var(--ink-soft); font-size:16.5px; max-width:58ch; }
+
+  .stage-row{
+    display:flex; flex-wrap:wrap; gap:10px; margin-top:26px;
+  }
+  .stage-chip{
+    display:flex; align-items:center; gap:8px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:999px; padding:7px 14px 7px 10px; font-size:13.5px; color:var(--ink-soft);
+  }
+  .stage-chip b{ color:var(--ink); font-weight:600; }
+  .stage-chip .n{
+    width:20px; height:20px; border-radius:50%; background:var(--accent2-soft); color:var(--accent2);
+    display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:700;
+    font-family:"IBM Plex Mono",monospace;
+  }
+
+  section.chapter{
+    padding-top:52px; margin-top:6px; border-top:1px solid var(--border);
+    scroll-margin-top: 20px;
+  }
+  section.chapter:first-of-type{ border-top:none; padding-top:0; }
+
+  .chapter-head{ display:flex; gap:18px; align-items:flex-start; margin-bottom:22px; }
+  .chapter-head .big-letter{
+    font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700;
+    font-size:44px; line-height:1; color:var(--accent2); flex:none;
+    min-width:.9em;
+  }
+  .chapter-head h2{ font-size:25px; padding-top:5px; }
+  .chapter-head .stage-tag{
+    display:inline-block; margin-top:8px;
+    font-size:11.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:600;
+    color:var(--ink-faint);
+  }
+
+  .prose{ max-width:70ch; }
+  .prose p{ margin:0 0 14px; color:var(--ink); }
+  .prose p.soft{ color:var(--ink-soft); }
+
+  .callout{
+    background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent2);
+    border-radius:8px; padding:16px 20px; margin:18px 0 22px; max-width:70ch;
+    box-shadow:var(--shadow);
+  }
+  .callout .label{
+    font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
+    color:var(--accent2); margin-bottom:8px; display:block;
+  }
+  .callout ul{ margin:0; padding-left:20px; }
+  .callout li{ margin-bottom:6px; color:var(--ink); }
+  .callout li:last-child{ margin-bottom:0; }
+  .callout li .k{ color:var(--ink-soft); }
+
+  .takeaway{
+    display:flex; gap:12px; align-items:flex-start;
+    background:var(--accent-soft); border-radius:8px; padding:14px 18px;
+    margin-top:22px; max-width:70ch;
+  }
+  .takeaway .mark{
+    font-family:"IBM Plex Mono",monospace; font-weight:700; color:var(--accent); font-size:13px;
+    flex:none; margin-top:2px;
+  }
+  .takeaway p{ margin:0; color:var(--ink); font-size:14.5px; }
+
+  /* formula */
+  .formula{
+    font-family:"IBM Plex Mono",monospace; background:var(--surface-2);
+    border:1px solid var(--border); border-radius:8px;
+    padding:16px 22px; margin:16px 0; max-width:70ch;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    font-size:15.5px; overflow-x:auto;
+  }
+  .formula .frac{
+    display:inline-flex; flex-direction:column; align-items:center; vertical-align:middle;
+    margin:0 3px; line-height:1.3;
+  }
+  .formula .frac .num{ border-bottom:1.4px solid currentColor; padding:0 4px 1px; }
+  .formula .frac .den{ padding:1px 4px 0; }
+  .formula sup{ font-size:.7em; }
+
+  /* code card */
+  .code-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    margin:16px 0 22px; overflow:hidden; box-shadow:var(--shadow);
+    max-width: 100%;
+  }
+  .code-card .bar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:9px 16px; background:var(--surface-2); border-bottom:1px solid var(--border);
+    font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-soft);
+  }
+  .code-card .bar .fn{ color:var(--ink); font-weight:600; }
+  .code-card pre{
+    margin:0; padding:16px 18px; overflow-x:auto;
+    font-family:"IBM Plex Mono",monospace; font-size:13.3px; line-height:1.62;
+  }
+  .code-card code{ color:var(--ink); }
+  .tok-kw{ color:var(--code-kw); }
+  .tok-str{ color:var(--code-str); }
+  .tok-com{ color:var(--code-com); font-style:italic; }
+  .tok-fn{ color:var(--code-fn); }
+  .tok-num{ color:var(--code-num); }
+
+  .kv-table{ width:100%; border-collapse:collapse; margin:14px 0 20px; max-width:70ch; font-size:14px; }
+  .kv-table th, .kv-table td{
+    text-align:left; padding:8px 12px; border-bottom:1px solid var(--border);
+  }
+  .kv-table th{ color:var(--ink-faint); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.05em; }
+  .kv-table td code{ font-family:"IBM Plex Mono",monospace; font-size:12.8px; background:var(--surface-2); padding:1px 5px; border-radius:4px; }
+  .kv-table td.num{ font-variant-numeric: tabular-nums; }
+
+  .compare{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:16px 0 22px; max-width:70ch; }
+  .compare .box{ background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
+  .compare .box h4{ font-size:14px; margin-bottom:8px; color:var(--ink); }
+  .compare .box.pos{ border-left:3px solid var(--accent2); }
+  .compare .box.neg{ border-left:3px solid var(--red); }
+  .compare ul{ margin:0; padding-left:18px; font-size:13.6px; color:var(--ink-soft); }
+  .compare li{ margin-bottom:4px; }
+
+  /* kernel grid visual */
+  .kernel-row{ display:flex; gap:28px; flex-wrap:wrap; margin:18px 0 22px; }
+  .kernel{ text-align:center; }
+  .kernel .cap{ font-size:12.5px; color:var(--ink-soft); margin-bottom:8px; }
+  .kernel .grid3{
+    display:grid; grid-template-columns:repeat(3,34px); grid-template-rows:repeat(3,34px);
+    gap:3px; background:var(--border); border:1px solid var(--border); border-radius:6px; overflow:hidden;
+  }
+  .kernel .grid3 span{
+    background:var(--surface); display:flex; align-items:center; justify-content:center;
+    font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--ink);
+  }
+  .kernel .grid3 span.center{ background:var(--accent-soft); color:var(--accent); font-weight:700; }
+  .kernel .grid3 span.neg{ color:var(--red); }
+
+  /* HSV wheel */
+  .hsv-wrap{ display:flex; gap:32px; align-items:center; flex-wrap:wrap; margin:18px 0 24px; }
+  .hsv-wrap svg{ flex:none; }
+  .hsv-legend{ font-size:13.6px; color:var(--ink-soft); max-width:34ch; }
+  .hsv-legend div{ margin-bottom:6px; }
+  .hsv-legend b{ color:var(--ink); }
+
+  .pipeline{
+    display:flex; align-items:center; flex-wrap:wrap; gap:0; margin:18px 0 24px; max-width:70ch;
+  }
+  .pipeline .step{
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:9px 14px; font-size:13px; color:var(--ink); white-space:nowrap;
+  }
+  .pipeline .arrow{ color:var(--ink-faint); padding:0 8px; font-size:15px; }
+
+  footer.page-end{
+    max-width:70ch; margin-top:64px; padding-top:26px; border-top:1px solid var(--border);
+    color:var(--ink-faint); font-size:13px;
+  }
+
+  code.inline{
+    font-family:"IBM Plex Mono",monospace; background:var(--surface-2);
+    padding:1.5px 6px; border-radius:5px; font-size:.88em; color:var(--ink);
+  }
+
+  .mobile-toc-toggle{ display:none; }
+
+  @media (max-width: 900px){
+    .layout{ grid-template-columns: 1fr; }
+    .sidebar{
+      position:static; height:auto; border-right:none; border-bottom:1px solid var(--border);
+      padding:16px 20px;
+    }
+    nav.toc{ display:none; margin-top:14px; }
+    nav.toc.open{ display:block; }
+    .mobile-toc-toggle{
+      display:flex; align-items:center; gap:8px; width:100%;
+      background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
+      padding:10px 14px; color:var(--ink); font-size:13.5px; font-weight:600;
+      font-family:"IBM Plex Sans Condensed",sans-serif; letter-spacing:.03em;
+    }
+    main{ padding:38px 20px 90px; }
+    .compare{ grid-template-columns:1fr; }
+    header.hero h1{ font-size:30px; }
+  }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; scroll-behavior:auto !important; } }
+
+  html{ scroll-behavior:smooth; }
+
+  /* ---------- Print (PDF로 저장 시) ---------- */
+  @media print{
+    :root{
+      --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F3F4F2; --surface-3:#EAEDEA;
+      --ink:#14181A; --ink-soft:#4A5450; --ink-faint:#78827D; --border:#CBD2CD;
+      --shadow:none;
+    }
+    * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body{ font-size:12.5px; }
+    .layout{ display:block; max-width:none; }
+    .sidebar{ display:none; }
+    main{ padding:0 6mm; }
+    header.hero{ margin-bottom:30px; }
+    .stage-chip{ break-inside:avoid; }
+    section.chapter{
+      border-top:1px solid var(--border);
+      break-before:page; padding-top:24px;
+    }
+    section.chapter:first-of-type{ break-before:avoid; }
+    .code-card, .callout, .compare, .kv-table, .takeaway, .kernel-row, .hsv-wrap, .formula, .pipeline{
+      break-inside:avoid;
+    }
+    a{ color:var(--ink); text-decoration:none; }
+    .code-card pre{ white-space:pre-wrap; word-break:break-word; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <span class="brand">Study Notes<strong>Edge&nbsp;AI<br>객체 탐지 정리</strong></span>
+    <button class="mobile-toc-toggle" id="tocToggle" type="button">목차 펼치기 ▾</button>
+    <nav class="toc" id="tocNav">
+      <div class="group-label">01 · 탐지의 기본 단위</div>
+      <ol>
+        <li><a href="#sec-a"><span class="letter">A</span>Bounding Box</a></li>
+        <li><a href="#sec-b"><span class="letter">B</span>IoU</a></li>
+        <li><a href="#sec-c"><span class="letter">C</span>NMS</a></li>
+      </ol>
+      <div class="group-label">02 · YOLO</div>
+      <ol>
+        <li><a href="#sec-d"><span class="letter">D</span>YOLO 개요 · 설치</a></li>
+        <li><a href="#sec-e"><span class="letter">E</span>실시간 객체 탐지</a></li>
+        <li><a href="#sec-f"><span class="letter">F</span>FPS 측정</a></li>
+      </ol>
+      <div class="group-label">03 · Jetson 최적화</div>
+      <ol>
+        <li><a href="#sec-g"><span class="letter">G</span>모니터링 · Power Mode</a></li>
+        <li><a href="#sec-h"><span class="letter">H</span>TensorRT 변환</a></li>
+        <li><a href="#sec-i"><span class="letter">I</span>INT8 양자화</a></li>
+      </ol>
+    <div class="group-label">04 · 정답 코드</div>
+      <ol>
+        <li><a href="#sec-j"><span class="letter">J</span>실습 정답 코드</a></li>
+      </ol>
+    </nav>
+  </aside>
+
+  <main>
+    <header class="hero">
+      <span class="eyebrow">04_DL-Object-Detection.ipynb 기반 정리</span>
+      <h1>딥러닝 기반 Edge AI 객체 탐지 시스템</h1>
+      <p class="sub">박스 하나를 그리는 좌표 규약에서 시작해 IoU · NMS로 중복을 정리하고, YOLO로 실시간 탐지를 돌린 뒤,
+      TensorRT와 INT8 양자화로 Jetson에서 실제로 쓸 만한 FPS까지 끌어올리는 전 과정을 정리했습니다.</p>
+      <div class="stage-row">
+        <div class="stage-chip"><span class="n">1</span> <b>탐지의 기본 단위</b>&nbsp;BBox · IoU · NMS</div>
+        <div class="stage-chip"><span class="n">2</span> <b>YOLO</b>&nbsp;사전학습 모델 · 실시간 · FPS</div>
+        <div class="stage-chip"><span class="n">3</span> <b>Edge 최적화</b>&nbsp;Power Mode · TensorRT · INT8</div>
+      </div>
+    </header>
+
+    <!-- ================= A ================= -->
+    <section class="chapter" id="sec-a">
+      <div class="chapter-head">
+        <span class="big-letter">A</span>
+        <div><h2>Bounding Box</h2><span class="stage-tag">객체 탐지 = 위치 추정 + 이미지 분류</span></div>
+      </div>
+      <div class="prose">
+        <p>객체 탐지(Object Detection)는 <b>Localization</b>(어디에)과 <b>Image Classification</b>(무엇이)을 결합한 기술이다. 하나의 이미지에서 여러 객체를 동시에 인식하며, 각 객체는 <b>Bounding Box(위치) + Class(종류) + Confidence(신뢰도)</b> 세 값으로 표현된다.</p>
+      </div>
+
+      <div class="compare">
+        <div class="box neg">
+          <h4>규칙기반 (Rule-based)</h4>
+          <ul><li>사람이 색·크기·형태 규칙을 직접 설정</li><li>+ 학습 데이터 불필요</li><li>− 환경이 바뀌면 규칙을 다시 수정</li><li>− 조명 · 배경 · 크기 변화에 민감</li></ul>
+        </div>
+        <div class="box pos">
+          <h4>학습기반 (Learning-based)</h4>
+          <ul><li>모델이 데이터에서 특징을 학습</li><li>+ 복잡한 배경 · 다양한 변화에 대응</li><li>− 많은 데이터와 연산 필요</li><li>− 내부 판단 과정 해석이 어려움</li></ul>
+        </div>
+      </div>
+
+      <h3 style="font-size:16px;margin:28px 0 6px;">BBox 표현 방식 4가지</h3>
+      <p class="prose soft">같은 박스를 네 가지로 쓸 수 있다. <b>함수마다 요구하는 형식이 달라서</b> 변환이 늘 필요하다.</p>
+      <table class="kv-table">
+        <tr><th>형식</th><th>구성</th><th>쓰이는 곳</th></tr>
+        <tr><td><code>(x1, y1, x2, y2)</code></td><td>좌상단 + 우하단</td><td><code>cv2.rectangle</code>, YOLO <code>boxes.xyxy</code>, IoU 계산</td></tr>
+        <tr><td><code>(x, y, w, h)</code></td><td>좌상단 + 크기</td><td><code>cv2.boundingRect</code>, <code>cv2.selectROI</code>, <code>cv2.dnn.NMSBoxes</code></td></tr>
+        <tr><td><code>(cx, cy, w, h)</code></td><td>중심 + 크기</td><td>YOLO 내부 표현</td></tr>
+        <tr><td><code>(cx<sub>n</sub>, cy<sub>n</sub>, w<sub>n</sub>, h<sub>n</sub>)</code></td><td>중심+크기를 0~1 정규화</td><td>YOLO 라벨 파일(.txt)</td></tr>
+      </table>
+
+      <div class="callout">
+        <span class="label">변환 공식 — 이것만 외우면 된다</span>
+        <ul>
+          <li><span class="k">xywh → xyxy</span> &nbsp; <code class="inline">x2 = x + w</code>, <code class="inline">y2 = y + h</code></li>
+          <li><span class="k">cxcywh → xyxy</span> &nbsp; <code class="inline">x1 = cx − w/2</code>, <code class="inline">y1 = cy − h/2</code></li>
+          <li><span class="k">정규화</span> &nbsp; <code class="inline">cx_norm = cx / image_width</code> (w, h도 동일)</li>
+        </ul>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">bbox_convert.py</span><span>(x,y,w,h) → (x1,y1,x2,y2)</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">convert_bbox_coord</span>(bbox):
+    x, y, w, h = bbox
+    <span class="tok-kw">return</span> (x, y, x + w, y + h)</code></pre>
+      </div>
+
+      <h3 style="font-size:16px;margin:28px 0 6px;">규칙기반으로 BBox 뽑아내기</h3>
+      <p class="prose">좌표를 손으로 적는 건 탐지가 아니다. <b>Color Segmentation → Morphology → Contour → boundingRect</b> 순서로 가면 좌표가 <b>계산되어</b> 나온다 — 이것이 가장 단순한 규칙기반 객체 탐지다.</p>
+      <div class="pipeline">
+        <div class="step">GaussianBlur</div><span class="arrow">→</span>
+        <div class="step">inRange<br><span style="color:var(--ink-faint);">HSV 이진 마스크</span></div><span class="arrow">→</span>
+        <div class="step">Open / Close</div><span class="arrow">→</span>
+        <div class="step">findContours</div><span class="arrow">→</span>
+        <div class="step" style="border-color:var(--accent2);">boundingRect<br><span style="color:var(--ink-faint);">(x,y,w,h)</span></div>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">rule_based_detect.py</span><span>빨간 사과 → BBox</span></div>
+        <pre><code><span class="tok-com"># 빨강은 H가 원형이라 두 구간을 OR로 합친다</span>
+apple_blur = cv2.GaussianBlur(apple, (<span class="tok-num">7</span>,<span class="tok-num">7</span>), <span class="tok-num">0</span>)
+apple_hsv  = cv2.cvtColor(apple_blur, cv2.COLOR_BGR2HSV)
+
+mask1 = cv2.inRange(apple_hsv, np.array([<span class="tok-num">0</span>,<span class="tok-num">100</span>,<span class="tok-num">50</span>]),   np.array([<span class="tok-num">10</span>,<span class="tok-num">255</span>,<span class="tok-num">255</span>]))
+mask2 = cv2.inRange(apple_hsv, np.array([<span class="tok-num">170</span>,<span class="tok-num">100</span>,<span class="tok-num">50</span>]), np.array([<span class="tok-num">180</span>,<span class="tok-num">255</span>,<span class="tok-num">255</span>]))
+apple_mask = cv2.bitwise_or(mask1, mask2)
+
+kernel = np.ones((<span class="tok-num">5</span>,<span class="tok-num">5</span>), np.uint8)
+apple_mask = cv2.morphologyEx(apple_mask, cv2.MORPH_OPEN,  kernel)   <span class="tok-com"># 노이즈 제거</span>
+apple_mask = cv2.morphologyEx(apple_mask, cv2.MORPH_CLOSE, kernel)   <span class="tok-com"># 구멍 메우기</span>
+
+contours, _ = cv2.findContours(apple_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+largest_contour = <span class="tok-fn">max</span>(contours, key=cv2.contourArea)
+
+x, y, w, h = cv2.boundingRect(largest_contour)      <span class="tok-com"># ← 좌표가 '계산되어' 나온다</span>
+cv2.rectangle(apple_rgb, (x, y), (x+w, y+h), (<span class="tok-num">0</span>,<span class="tok-num">255</span>,<span class="tok-num">0</span>), <span class="tok-num">3</span>)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">POINT</span><p><code class="inline">cv2.boundingRect()</code>는 <b>(x, y, w, h)</b>를 반환한다. <code class="inline">cv2.rectangle()</code>은 <b>(x1,y1)-(x2,y2)</b>를 받는다. 둘을 이어 붙일 때 <code class="inline">x+w, y+h</code> 변환을 빼먹는 것이 가장 흔한 실수다.</p></div>
+    </section>
+
+    <!-- ================= B ================= -->
+    <section class="chapter" id="sec-b">
+      <div class="chapter-head">
+        <span class="big-letter">B</span>
+        <div><h2>Intersection over Union</h2><span class="stage-tag">두 박스가 얼마나 겹치는가</span></div>
+      </div>
+      <div class="prose"><p>IoU는 <b>교집합 면적 ÷ 합집합 면적</b>이다. 교집합은 언제나 합집합의 부분이므로 값은 항상 <code class="inline">0 ≤ IoU ≤ 1</code>이며, <b>0이면 전혀 안 겹침 · 1이면 완전히 동일</b>하다.</p></div>
+
+      <div class="formula"><span class="frac"><span class="num">교집합 면적</span><span class="den">합집합 면적</span></span> = IoU &nbsp;&nbsp;·&nbsp;&nbsp; 합집합 = A + B − 교집합</div>
+      <p class="prose soft" style="max-width:70ch;margin-top:-8px;">A와 B를 그냥 더하면 겹친 부분이 <b>두 번</b> 세어지므로 교집합을 정확히 한 번 빼야 한다.</p>
+
+      <h3 style="font-size:16px;margin:28px 0 8px;">교집합 좌표가 찍히는 위치</h3>
+      <figure style="margin:16px 0 22px;max-width:100%;overflow-x:auto;">
+        <svg viewBox="0 0 640 400" role="img" aria-label="박스 A와 박스 B가 겹칠 때 교집합의 좌상단은 두 좌상단 중 더 안쪽 점이고 우하단은 두 우하단 중 더 안쪽 점이다." style="display:block;width:100%;height:auto;min-width:460px;">
+          <defs>
+            <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+            <pattern id="h4" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="8" stroke="currentColor" stroke-width="1.6" opacity=".35"/></pattern>
+          </defs>
+          <line x1="60" y1="40" x2="600" y2="40" stroke="currentColor" stroke-width="1.2" marker-end="url(#a4)"/>
+          <line x1="48" y1="52" x2="48" y2="360" stroke="currentColor" stroke-width="1.2" marker-end="url(#a4)"/>
+          <text x="608" y="44" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">x</text>
+          <text x="48" y="378" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" text-anchor="middle">y</text>
+
+          <rect x="120" y="90" width="270" height="180" fill="var(--accent2-soft)" stroke="var(--accent2)" stroke-width="2.2"/>
+          <rect x="270" y="160" width="270" height="180" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2.2"/>
+          <rect x="270" y="160" width="120" height="110" fill="url(#h4)" stroke="currentColor" stroke-width="2.2"/>
+
+          <text x="132" y="110" font-family="IBM Plex Sans Condensed,sans-serif" font-size="14" font-weight="700" fill="var(--accent2)">A</text>
+          <text x="528" y="330" font-family="IBM Plex Sans Condensed,sans-serif" font-size="14" font-weight="700" fill="var(--accent)" text-anchor="end">B</text>
+          <text x="330" y="220" font-family="IBM Plex Sans,sans-serif" font-size="13" font-weight="600" fill="currentColor" text-anchor="middle">교집합</text>
+
+          <circle cx="270" cy="160" r="6" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"/>
+          <circle cx="390" cy="270" r="6" fill="var(--accent2)" stroke="var(--surface)" stroke-width="1.5"/>
+          <line x1="270" y1="160" x2="196" y2="126" stroke="currentColor" stroke-width="1" opacity=".5"/>
+          <text x="190" y="122" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor" text-anchor="end">max(xa1,xb1), max(ya1,yb1)</text>
+          <text x="190" y="137" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="var(--ink-faint)" text-anchor="end">교집합 좌상단 = B의 좌상단</text>
+          <line x1="390" y1="270" x2="452" y2="302" stroke="currentColor" stroke-width="1" opacity=".5"/>
+          <text x="458" y="298" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">min(xa2,xb2), min(ya2,yb2)</text>
+          <text x="458" y="313" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="var(--ink-faint)">교집합 우하단 = A의 우하단</text>
+        </svg>
+      </figure>
+
+      <div class="callout">
+        <span class="label">왜 두 개는 max이고 두 개는 min인가</span>
+        <ul>
+          <li><span class="k">좌상단</span> 둘 다 겹치려면 <b>더 늦게 시작한</b> 쪽부터 → 좌표값이 큰 쪽 → <code class="inline">max</code></li>
+          <li><span class="k">우하단</span> 둘 다 겹치려면 <b>더 먼저 끝난</b> 쪽까지 → 좌표값이 작은 쪽 → <code class="inline">min</code></li>
+          <li>결국 <b>항상 더 안쪽 벽을 고르는 것</b> — 교집합은 안쪽 벽 넷으로 둘러싸인 방이다</li>
+          <li>교집합의 꼭짓점은 새로 계산된 점이 아니라 <b>두 박스의 꼭짓점 중 하나가 선택된 것</b>이다</li>
+        </ul>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">calculate_iou.py</span><span>노트북 셀 30 — 완성 코드</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">calculate_iou</span>(bbox_a, bbox_b):
+    xa_1, ya_1, xa_2, ya_2 = bbox_a
+    xb_1, yb_1, xb_2, yb_2 = bbox_b
+
+    <span class="tok-com"># 교집합 영역의 좌표</span>
+    intersection_x1 = <span class="tok-fn">max</span>(xa_1, xb_1)
+    intersection_y1 = <span class="tok-fn">max</span>(ya_1, yb_1)
+    intersection_x2 = <span class="tok-fn">min</span>(xa_2, xb_2)
+    intersection_y2 = <span class="tok-fn">min</span>(ya_2, yb_2)
+
+    <span class="tok-com"># 겹치지 않으면 음수가 되므로 0으로 clamp</span>
+    intersection_width  = <span class="tok-fn">max</span>(<span class="tok-num">0</span>, intersection_x2 - intersection_x1)
+    intersection_height = <span class="tok-fn">max</span>(<span class="tok-num">0</span>, intersection_y2 - intersection_y1)
+    intersection_area   = intersection_width * intersection_height
+
+    area_a = (xa_2 - xa_1) * (ya_2 - ya_1)
+    area_b = (xb_2 - xb_1) * (yb_2 - yb_1)
+    union_area = area_a + area_b - intersection_area
+
+    <span class="tok-kw">if</span> union_area == <span class="tok-num">0</span>:      <span class="tok-com"># ZeroDivisionError 방지</span>
+        <span class="tok-kw">return</span> <span class="tok-num">0.0</span>
+
+    <span class="tok-kw">return</span> intersection_area / union_area</code></pre>
+      </div>
+
+      <div class="takeaway"><span class="mark">함정</span><p><code class="inline">max(0, ...)</code>는 <b>폭과 높이 각각에</b> 걸어야 한다. 두 박스가 <b>대각선으로</b> 떨어지면 폭·높이가 <b>둘 다 음수</b>가 되어 곱이 <b>양수</b>가 되고, 겹치지 않는데도 그럴듯한 IoU가 나온다. <code class="inline">max(0, w*h)</code>로 곱한 뒤 거는 건 무의미하다.</p></div>
+    </section>
+
+    <!-- ================= C ================= -->
+    <section class="chapter" id="sec-c">
+      <div class="chapter-head">
+        <span class="big-letter">C</span>
+        <div><h2>Non-Maximum Suppression</h2><span class="stage-tag">한 객체에 하나의 박스만 남기기</span></div>
+      </div>
+      <div class="prose"><p>객체 하나에 대해 모델이 <b>여러 개의 박스</b>를 높은 신뢰도로 예측하는 일이 흔하다. NMS는 <b>Confidence가 가장 높은 박스를 기준으로, 그와 많이 겹치는 박스를 제거</b>하는 과정을 반복해 객체마다 대표 박스 하나만 남긴다.</p></div>
+
+      <div class="callout">
+        <span class="label">NMS 알고리즘 — 두 개의 임계값이 쓰인다</span>
+        <ul>
+          <li><span class="k">0.</span> <b>Confidence Thresholding</b> — 신뢰도가 너무 낮은 박스를 먼저 통째로 제거</li>
+          <li><span class="k">1.</span> 남은 것 중 Confidence가 <b>가장 높은</b> 박스를 선택해 결과에 넣는다</li>
+          <li><span class="k">2.</span> 선택한 박스와 나머지 박스들의 <b>IoU를 계산</b></li>
+          <li><span class="k">3.</span> IoU가 <b>임계값보다 높은</b> 박스를 제거 (같은 객체로 간주)</li>
+          <li><span class="k">4.</span> 남은 박스가 없을 때까지 1~3 반복</li>
+        </ul>
+      </div>
+
+      <div class="compare">
+        <div class="box pos"><h4>conf_threshold</h4><ul><li>박스를 <b>얼마나 믿을지</b>의 기준</li><li>높이면 검출 수 감소, 오탐 감소</li></ul></div>
+        <div class="box pos"><h4>iou_threshold</h4><ul><li>박스를 <b>같은 객체로 볼지</b>의 기준</li><li>낮출수록 더 공격적으로 제거</li></ul></div>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">nms.py</span><span>직접 구현 — 노트북 셀 51 · 52 정답</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">prune_low_conf</span>(boxes, scores, conf_threshold=<span class="tok-num">0.5</span>):
+    pruned_boxes, pruned_scores = [], []
+
+    <span class="tok-kw">for</span> box, score <span class="tok-kw">in</span> <span class="tok-fn">zip</span>(boxes, scores):
+        <span class="tok-kw">if</span> score &gt;= conf_threshold:
+            pruned_boxes.append(box)
+            pruned_scores.append(score)
+
+    <span class="tok-kw">return</span> pruned_boxes, pruned_scores
+
+
+<span class="tok-kw">def</span> <span class="tok-fn">apply_nms</span>(boxes, scores, iou_threshold=<span class="tok-num">0.5</span>):
+    <span class="tok-kw">if</span> <span class="tok-fn">len</span>(boxes) == <span class="tok-num">0</span>:
+        <span class="tok-kw">return</span> [], []
+
+    <span class="tok-com"># Confidence 내림차순 인덱스 (argsort는 오름차순이라 뒤집는다)</span>
+    order = np.argsort(scores)[::<span class="tok-num">-1</span>].tolist()
+
+    nms_boxes, nms_scores = [], []
+
+    <span class="tok-kw">while</span> order:
+        current = order.pop(<span class="tok-num">0</span>)          <span class="tok-com"># 가장 높은 Confidence</span>
+        nms_boxes.append(boxes[current])
+        nms_scores.append(scores[current])
+
+        <span class="tok-com"># 많이 겹치는 박스는 같은 객체 → 제거</span>
+        order = [
+            i <span class="tok-kw">for</span> i <span class="tok-kw">in</span> order
+            <span class="tok-kw">if</span> calculate_iou(boxes[current], boxes[i]) &lt;= iou_threshold
+        ]
+
+    <span class="tok-kw">return</span> nms_boxes, nms_scores</code></pre>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">nms_cv2.py</span><span>⚠ cv2.dnn.NMSBoxes는 (x, y, w, h)를 받는다</span></div>
+        <pre><code><span class="tok-com"># xyxy → xywh 변환이 반드시 필요하다</span>
+boxes_xywh = [[<span class="tok-fn">int</span>(x1), <span class="tok-fn">int</span>(y1), <span class="tok-fn">int</span>(x2-x1), <span class="tok-fn">int</span>(y2-y1)] <span class="tok-kw">for</span> x1,y1,x2,y2 <span class="tok-kw">in</span> boxes]
+
+keep_indices = cv2.dnn.NMSBoxes(
+    bboxes=boxes_xywh,
+    scores=scores,
+    score_threshold=conf_threshold,   <span class="tok-com"># Confidence Thresholding까지 함께 처리</span>
+    nms_threshold=iou_threshold,
+)
+
+keep_indices = np.array(keep_indices).reshape(<span class="tok-num">-1</span>).tolist()   <span class="tok-com"># 1차원으로 평탄화</span>
+
+nms_boxes  = [boxes[i]  <span class="tok-kw">for</span> i <span class="tok-kw">in</span> keep_indices]     <span class="tok-com"># 원래 xyxy에서 선택</span>
+nms_scores = [scores[i] <span class="tok-kw">for</span> i <span class="tok-kw">in</span> keep_indices]</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">POINT</span><p>NMS 후에도 남아 있는 중복 박스는 버그가 아니다 — <b>겹친 면적이 작거나 합집합이 넓어 IoU가 임계값 아래</b>인 경우다. <code class="inline">cv2.dnn.NMSBoxes</code>는 직접 구현과 동일한 결과를 주지만, 내부적으로 <b>xywh 형식</b>을 쓰고 <b>인덱스</b>를 반환한다는 두 가지 차이를 기억할 것.</p></div>
+    </section>
+
+    <!-- ================= D ================= -->
+    <section class="chapter" id="sec-d">
+      <div class="chapter-head">
+        <span class="big-letter">D</span>
+        <div><h2>YOLO 개요 · 설치</h2><span class="stage-tag">One-stage Detector · COCO 사전학습</span></div>
+      </div>
+      <div class="prose"><p><b>YOLO(You Only Look Once)</b>는 이미지 전체를 신경망에 <b>한 번</b> 넣어 위치·종류·신뢰도를 동시에 예측하는 CNN 기반 One-stage Detector다. 별도의 Region Proposal 단계가 없고 Feature Map을 여러 객체가 공유하며 여러 위치의 예측을 병렬로 계산하기 때문에 <b>GPU 병렬 연산과 궁합이 좋아</b> 실시간 처리에 적합하다.</p></div>
+
+      <div class="callout">
+        <span class="label">모델 이름 읽는 법 — YOLO11n</span>
+        <ul>
+          <li><span class="k">YOLO</span> 모델 이름 (You Only Look Once)</li>
+          <li><span class="k">11</span> 버전 (V1부터 발전, 최신은 YOLO26까지 출시)</li>
+          <li><span class="k">n</span> 모델 크기 및 파라미터 수 (n · s · m · l · x)</li>
+        </ul>
+      </div>
+
+      <table class="kv-table">
+        <tr><th>크기</th><th>약자</th><th>특징</th></tr>
+        <tr><td><code>n</code></td><td>Nano</td><td>경량화 모델 — 속도 최우선, 연산량 적음</td></tr>
+        <tr><td><code>s</code></td><td>Small</td><td>가벼우면서 적절한 성능</td></tr>
+        <tr><td><code>m</code></td><td>Medium</td><td>속도와 정확도의 균형</td></tr>
+        <tr><td><code>l</code></td><td>Large</td><td>높은 정확도</td></tr>
+        <tr><td><code>x</code></td><td>Extra Large</td><td>최고 성능, 높은 연산량 필요</td></tr>
+      </table>
+
+      <div class="prose"><p class="soft">본 수업이 최신 YOLO26이 아니라 <b>YOLO11n</b>을 쓰는 이유는 셋이다 — ① PyTorch·OpenCV와의 <b>의존성 충돌 위험이 낮고</b>, ② Nano는 연산량이 적어 <b>Jetson에서 실시간이 가능</b>하며, ③ 가중치 파일이 가벼워 <b>실습 회전이 빠르다</b>.</p></div>
+
+      <div class="callout">
+        <span class="label">COCO 데이터셋 — YOLO 기본 모델이 이미 학습한 것</span>
+        <ul>
+          <li>Microsoft가 만든 대규모 객체 탐지 · 분할 데이터셋</li>
+          <li><b>80가지 클래스</b> — 사람, 자동차, 강아지, 의자 등 일상 객체</li>
+          <li>여러 객체가 어우러진 <b>실제 환경 이미지</b>가 다수 → 실전 인식 성능이 높음</li>
+          <li>그래서 <b>추가 학습 없이 바로</b> 사람·차량·동물을 탐지할 수 있다</li>
+        </ul>
+      </div>
+
+      <div class="takeaway"><span class="mark">03과의 결정적 차이</span><p>MNIST · CIFAR-10에서는 모델 구조를 직접 정의하고 <b>무작위 초기화에서 학습</b>시켰다. YOLO11n은 <b>이미 학습된 가중치(Pre-trained Model)</b>를 받아서 추론만 한다 — 처음으로 "남이 학습시킨 모델을 가져다 쓰는" 단계다.</p></div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">install.sh</span><span>⚠ NumPy는 2.0 미만으로 고정</span></div>
+        <pre><code><span class="tok-com"># ultralytics 요구사항: numpy&gt;=1.23.0, opencv-python&gt;=4.6.0</span>
+pip install <span class="tok-str">"numpy==1.23.0"</span>
+
+<span class="tok-com"># 의존성 없이 최소 설치 후 필수 의존만 추가</span>
+pip install --no-deps ultralytics
+pip install --no-deps <span class="tok-str">"typing_extensions&gt;=4.10.0,&lt;5"</span>
+pip install --no-deps <span class="tok-str">"filelock&gt;=3.16.1,&lt;4"</span></code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">함정</span><p>NumPy를 <b>2.x로 올리면 안 된다</b>. GStreamer가 연동된 OpenCV와 호환성 문제가 발생해 카메라 파이프라인이 동작하지 않는다. 버전이 갱신되지 않으면 <b>Jupyter: Restart Kernel</b>이 필요하다.</p></div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">yolo_predict.py</span><span>모델 로드 → 추론 → 결과 파싱</span></div>
+        <pre><code><span class="tok-kw">from</span> ultralytics <span class="tok-kw">import</span> YOLO
+
+model = YOLO(<span class="tok-str">"src/models/YOLO/yolo11n.pt"</span>)   <span class="tok-com"># 없으면 자동 다운로드</span>
+model.to(<span class="tok-str">"cuda"</span>)                             <span class="tok-com"># CUDA 있으면 기본이 cuda:0, 명시도 가능</span>
+
+results = model.predict(
+    source=<span class="tok-str">"src/images/city.png"</span>,
+    conf=<span class="tok-num">0.25</span>,     <span class="tok-com"># Confidence Threshold  ← C장의 그 임계값</span>
+    iou=<span class="tok-num">0.5</span>,       <span class="tok-com"># IoU Threshold (NMS)   ← C장의 그 임계값</span>
+    classes=[<span class="tok-num">2</span>],   <span class="tok-com"># None이면 전체, [2]는 자동차만</span>
+)
+
+result = results[<span class="tok-num">0</span>]                          <span class="tok-com"># Batch 처리라 리스트로 반환된다</span>
+result.boxes.xyxy    <span class="tok-com"># BBox 좌표 (x1,y1,x2,y2)</span>
+result.boxes.cls     <span class="tok-com"># 클래스 인덱스</span>
+result.boxes.conf    <span class="tok-com"># Confidence Score</span>
+
+img = result.plot()   <span class="tok-com"># BGR 반환 → plt로 볼 땐 cvtColor 필요 / .py에선 result.show()</span></code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">연결점</span><p><code class="inline">conf</code>와 <code class="inline">iou</code> 인자가 바로 <b>C장에서 직접 구현한 NMS의 두 임계값</b>이다. YOLO는 NMS를 내부에서 자동으로 돌리고 있고, 우리는 그 기준값만 넘겨주는 것이다.</p></div>
+    </section>
+
+    <!-- ================= E ================= -->
+    <section class="chapter" id="sec-e">
+      <div class="chapter-head">
+        <span class="big-letter">E</span>
+        <div><h2>YOLO 실시간 객체 탐지</h2><span class="stage-tag">GStreamer 프레임 루프에 모델을 얹는다</span></div>
+      </div>
+      <div class="prose"><p>Computer Vision 섹션의 <b>GStreamer 파이프라인 + <code class="inline">while</code> 루프</b>를 그대로 쓰고, 프레임마다 <code class="inline">model.predict()</code>를 호출하면 끝이다. 새로운 개념은 없다.</p></div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">yolo_realtime.py</span><span>Jupyter가 아닌 .py 파일로 실행</span></div>
+        <pre><code>model = YOLO(<span class="tok-str">"src/models/YOLO/yolo11n.pt"</span>)
+model.to(<span class="tok-str">"cuda"</span>)
+
+pipeline = (
+    <span class="tok-str">"nvarguscamerasrc sensor-id=0 ! "</span>
+    <span class="tok-str">"video/x-raw(memory:NVMM), width=1280, height=720, framerate=30/1 ! "</span>
+    <span class="tok-str">"nvvidconv ! video/x-raw, format=BGRx ! "</span>
+    <span class="tok-str">"videoconvert ! video/x-raw, format=BGR ! "</span>
+    <span class="tok-str">"queue leaky=downstream max-size-buffers=1 ! "</span>
+    <span class="tok-str">"appsink drop=true max-buffers=1 sync=false"</span>
+)
+cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
+
+<span class="tok-kw">while</span> <span class="tok-fn">True</span>:
+    ret, frame = cap.read()
+    <span class="tok-kw">if</span> <span class="tok-kw">not</span> ret <span class="tok-kw">or</span> cv2.waitKey(<span class="tok-num">1</span>) &amp; <span class="tok-num">0xFF</span> == <span class="tok-fn">ord</span>(<span class="tok-str">"q"</span>):
+        <span class="tok-kw">break</span>
+
+    results = model.predict(source=frame, conf=<span class="tok-num">0.25</span>, iou=<span class="tok-num">0.5</span>,
+                            verbose=<span class="tok-fn">False</span>, classes=<span class="tok-fn">None</span>)   <span class="tok-com"># verbose=False 필수!</span>
+
+    cv2.imshow(<span class="tok-str">"YOLO Object Detection"</span>, results[<span class="tok-num">0</span>].plot())
+
+cap.release(); cv2.destroyAllWindows()</code></pre>
+      </div>
+      <div class="callout">
+        <span class="label">파이프라인에서 지연을 줄이는 두 옵션</span>
+        <ul>
+          <li><code class="inline">queue leaky=downstream max-size-buffers=1</code> — 밀린 프레임을 버려 큐가 쌓이지 않게 한다</li>
+          <li><code class="inline">appsink drop=true max-buffers=1 sync=false</code> — 항상 <b>가장 최신 프레임</b>만 읽는다</li>
+          <li>이 둘이 없으면 추론이 느릴 때 화면이 <b>점점 과거를 보여주게</b> 된다</li>
+        </ul>
+      </div>
+      <div class="takeaway"><span class="mark">실습 팁</span><p>Jupyter에서는 OpenCV GUI(<code class="inline">cv2.imshow</code>)가 동작하지 않으므로 별도 <code class="inline">.py</code> 파일로 실행한다. 루프 안에서 <code class="inline">verbose=False</code>를 빼면 매 프레임 로그가 쏟아져 그 자체로 FPS가 떨어진다.</p></div>
+    </section>
+
+    <!-- ================= F ================= -->
+    <section class="chapter" id="sec-f">
+      <div class="chapter-head">
+        <span class="big-letter">F</span>
+        <div><h2>성능 평가 — FPS</h2><span class="stage-tag">체감 성능은 추론 속도가 아니다</span></div>
+      </div>
+      <div class="formula">FPS = 1 / 프레임_처리_시간(s) = 1000 / 프레임_처리_시간(ms)</div>
+      <div class="compare">
+        <div class="box neg"><h4>추론 FPS</h4><ul><li>모델 Forward 속도만 측정</li><li>벤치마크 숫자로는 예쁘지만</li><li>실제 체감과 다름</li></ul></div>
+        <div class="box pos"><h4>End-to-End FPS</h4><ul><li>프레임 입력 + 전처리 + 추론</li><li>+ NMS + BBox 시각화 + 화면 출력</li><li><b>이것이 실제 성능</b></li></ul></div>
+      </div>
+
+      <div class="prose"><p>매 프레임 FPS를 그대로 표시하면 순간적인 Bottleneck·프레임 드롭 때문에 숫자가 심하게 요동친다. <b>지수 이동 평균(EMA)</b>으로 이전 값과 현재 값을 가중 결합하면, 최신 변화를 반영하면서도 급격한 노이즈를 완화할 수 있다.</p></div>
+      <div class="formula">displayed_fps = 0.9 × 이전_fps + 0.1 × 현재_fps</div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">fps_ema.py</span><span>루프 전체를 감싸야 End-to-End가 된다</span></div>
+        <pre><code>displayed_fps = <span class="tok-num">0.0</span>
+
+<span class="tok-kw">while</span> <span class="tok-fn">True</span>:
+    start_time = time.perf_counter()      <span class="tok-com"># ← 프레임 읽기 '전'부터 측정</span>
+
+    ret, frame = cap.read()
+    results = model.predict(source=frame, conf=<span class="tok-num">0.25</span>, iou=<span class="tok-num">0.5</span>, verbose=<span class="tok-fn">False</span>)
+    output_frame = results[<span class="tok-num">0</span>].plot()
+
+    elapsed_time = time.perf_counter() - start_time
+    current_fps = <span class="tok-num">1.0</span> / elapsed_time
+
+    <span class="tok-kw">if</span> displayed_fps == <span class="tok-num">0</span>:
+        displayed_fps = current_fps                              <span class="tok-com"># 첫 프레임은 그대로</span>
+    <span class="tok-kw">else</span>:
+        displayed_fps = <span class="tok-num">0.9</span> * displayed_fps + <span class="tok-num">0.1</span> * current_fps   <span class="tok-com"># EMA</span>
+
+    cv2.putText(output_frame, <span class="tok-str">f"FPS: {displayed_fps:.1f}"</span>, (<span class="tok-num">20</span>,<span class="tok-num">40</span>),
+                cv2.FONT_HERSHEY_SIMPLEX, <span class="tok-num">1.0</span>, (<span class="tok-num">0</span>,<span class="tok-num">255</span>,<span class="tok-num">0</span>), <span class="tok-num">2</span>)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">해석 주의</span><p>파이프라인이 <code class="inline">framerate=30/1</code>로 고정되어 있으면 <b>아무리 최적화해도 30 FPS가 상한</b>이다. 최적화 후 30 FPS가 나온다면 "모델이 느린 것"이 아니라 <b>카메라 입력이 상한</b>인 것 — 순수 모델 속도는 G · H장의 <code class="inline">trtexec</code>으로 따로 재야 한다.</p></div>
+    </section>
+
+    <!-- ================= G ================= -->
+    <section class="chapter" id="sec-g">
+      <div class="chapter-head">
+        <span class="big-letter">G</span>
+        <div><h2>Jetson 모니터링 · Power Mode</h2><span class="stage-tag">최적화 전에 병목부터 본다</span></div>
+      </div>
+      <div class="prose"><p>Jetson은 연산 자원 · 메모리 · 전력 · 발열이 모두 제한된 엣지 디바이스다. 무엇을 최적화할지 정하려면 <b>어디가 병목인지</b>부터 실시간으로 확인해야 한다.</p></div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">monitoring.sh</span><span>tegrastats — 필요한 줄만 골라 본다</span></div>
+        <pre><code>tegrastats                  <span class="tok-com"># 출력이 너무 많아 한눈에 안 들어온다</span>
+tegrastats | grep <span class="tok-str">"RAM"</span>     <span class="tok-com"># grep으로 필요한 지표만 추출·강조</span></code></pre>
+      </div>
+
+      <table class="kv-table">
+        <tr><th>항목</th><th>의미</th><th>본다면</th></tr>
+        <tr><td><code>RAM</code></td><td>시스템 메모리 사용량</td><td>★ 필수</td></tr>
+        <tr><td><code>SWAP</code></td><td>Swap 메모리 사용량</td><td>RAM 부족 시</td></tr>
+        <tr><td><code>CPU</code></td><td>코어별 사용률 및 클럭</td><td>★ 필수</td></tr>
+        <tr><td><code>GR3D_FREQ</code></td><td><b>GPU 사용률</b> 및 클럭</td><td>★ 필수</td></tr>
+        <tr><td><code>EMC_FREQ</code></td><td>메모리 컨트롤러 사용률</td><td>대역폭 병목 확인</td></tr>
+        <tr><td><code>cpu@ / gpu@</code></td><td>온도</td><td>★ Throttling 확인</td></tr>
+        <tr><td><code>VDD_IN</code></td><td>전체 전력 소비량</td><td>★ 전력 한계 확인</td></tr>
+      </table>
+
+      <h3 style="font-size:16px;margin:28px 0 6px;">Power Mode — Jetson Orin Nano</h3>
+      <table class="kv-table">
+        <tr><th>ID</th><th>모드</th><th>전력</th><th>CPU 최대</th><th>GPU 최대</th><th>용도</th></tr>
+        <tr><td class="num">0</td><td>15W</td><td class="num">15W</td><td class="num">1497.6 MHz</td><td class="num">612 MHz</td><td>일반 개발, 가벼운 추론</td></tr>
+        <tr><td class="num">1</td><td>25W</td><td class="num">25W</td><td class="num">1344 MHz</td><td class="num">918 MHz</td><td>YOLO 실시간 추론</td></tr>
+        <tr><td class="num">2</td><td>MAXN SUPER</td><td class="num">제한 없음</td><td class="num">1728 MHz</td><td class="num">1020 MHz</td><td>최대 FPS, TensorRT 벤치마크</td></tr>
+      </table>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">power_mode.sh</span><span>Headless 환경에서는 터미널로</span></div>
+        <pre><code>sudo nvpmodel -q              <span class="tok-com"># 현재 Power Mode 확인</span>
+sudo nvpmodel -m <span class="tok-num">2</span>            <span class="tok-com"># MAXN으로 변경 (0:15W, 1:25W, 2:MAXN)</span></code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">주의</span><p>Power Mode는 <b>무조건 높은 게 좋은 것이 아니다</b>. 전력·발열이 함께 올라가고, 한계에 도달하면 <b>Throttling</b>으로 클럭이 제한되어 오히려 성능이 떨어진다. 전원 공급이 불안정하거나 온도가 위험 수준이면 <b>강제 Shutdown</b>까지 발생한다. 연산 성능 · 전력 공급 · 배터리 · 냉각 환경을 함께 보고 고를 것.</p></div>
+    </section>
+
+    <!-- ================= H ================= -->
+    <section class="chapter" id="sec-h">
+      <div class="chapter-head">
+        <span class="big-letter">H</span>
+        <div><h2>TensorRT 기반 최적화</h2><span class="stage-tag">.pt → .onnx → .engine</span></div>
+      </div>
+      <div class="prose"><p>학습이 끝난 모델을 <b>배포 환경에서 더 빠르게</b> 실행하기 위한 과정이다. 탐지 성능은 유지하면서 추론 시간과 자원 사용량을 줄이는 것이 목적이며, Jetson처럼 자원이 제한된 환경에서 특히 중요하다.</p></div>
+
+      <div class="pipeline">
+        <div class="step">yolo11n.pt<br><span style="color:var(--ink-faint);">PyTorch</span></div><span class="arrow">→</span>
+        <div class="step">yolo11n.onnx<br><span style="color:var(--ink-faint);">프레임워크 중립 표준</span></div><span class="arrow">→</span>
+        <div class="step" style="border-color:var(--accent2);">yolo11n_fp16.engine<br><span style="color:var(--ink-faint);">GPU 전용 최적화</span></div>
+      </div>
+
+      <div class="callout">
+        <span class="label">두 형식의 역할</span>
+        <ul>
+          <li><b>ONNX</b> (Open Neural Network Exchange) — 딥러닝 모델의 <b>표준 교환 형식</b>. PyTorch에 종속되지 않게 만들어, TensorRT가 읽을 수 있는 <b>중간 다리</b> 역할</li>
+          <li><b>TensorRT</b> — NVIDIA의 추론 최적화 라이브러리. 연산 그래프 최적화 · 연산 결합 · GPU 실행 최적화를 적용해 <code class="inline">.engine</code>으로 저장</li>
+        </ul>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">export_onnx.py</span><span>ONNX 변환</span></div>
+        <pre><code><span class="tok-kw">import</span> os
+os.environ[<span class="tok-str">"YOLO_AUTOINSTALL"</span>] = <span class="tok-str">"False"</span>   <span class="tok-com"># 버전 충돌 방지 — 자동 설치 비활성화</span>
+
+model = YOLO(<span class="tok-str">"src/models/YOLO/yolo11n.pt"</span>)
+
+onnx_path = model.export(
+    format=<span class="tok-str">"onnx"</span>,
+    imgsz=<span class="tok-num">640</span>,      <span class="tok-com"># 입력 640×640</span>
+    batch=<span class="tok-num">1</span>,        <span class="tok-com"># 한 번에 1프레임</span>
+    dynamic=<span class="tok-fn">False</span>,  <span class="tok-com"># Static Shape — 고정해야 더 공격적으로 최적화된다</span>
+    simplify=<span class="tok-fn">True</span>,  <span class="tok-com"># 연산 그래프 단순화</span>
+    opset=<span class="tok-num">20</span>,
+)
+
+<span class="tok-com"># 검증</span>
+onnx_model = onnx.load(<span class="tok-str">"src/models/YOLO/yolo11n.onnx"</span>)
+onnx.checker.check_model(onnx_model)
+[i.name <span class="tok-kw">for</span> i <span class="tok-kw">in</span> onnx_model.graph.input]   <span class="tok-com"># 보통 ['images']</span></code></pre>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">trtexec.sh</span><span>ONNX → TensorRT Engine · 성능 측정</span></div>
+        <pre><code><span class="tok-com"># FP32 — 그래프/실행 최적화만, 정밀도 감소는 없음</span>
+/usr/src/tensorrt/bin/trtexec \
+    --onnx=<span class="tok-str">$HOME</span>/.../yolo11n.onnx \
+    --saveEngine=<span class="tok-str">$HOME</span>/.../yolo11n_fp32.engine
+
+<span class="tok-com"># FP16 — 정밀도를 절반으로 낮춰 추가 가속</span>
+/usr/src/tensorrt/bin/trtexec \
+    --onnx=<span class="tok-str">$HOME</span>/.../yolo11n.onnx \
+    --saveEngine=<span class="tok-str">$HOME</span>/.../yolo11n_fp16.engine \
+    --fp16
+
+<span class="tok-com"># 성능 측정</span>
+/usr/src/tensorrt/bin/trtexec \
+    --loadEngine=<span class="tok-str">$HOME</span>/.../yolo11n_fp16.engine \
+    --warmUp=<span class="tok-num">500</span> --duration=<span class="tok-num">10</span></code></pre>
+      </div>
+
+      <table class="kv-table">
+        <tr><th>trtexec 출력 항목</th><th>의미</th></tr>
+        <tr><td><code>Throughput</code></td><td>초당 처리 가능한 추론 횟수</td></tr>
+        <tr><td><code>Latency</code></td><td>한 번의 추론에 걸리는 전체 시간</td></tr>
+        <tr><td><code>GPU Compute Time</code></td><td>GPU가 실제 모델 연산에 쓴 시간</td></tr>
+      </table>
+
+      <div class="takeaway"><span class="mark">함정</span><p><code class="inline">.engine</code>을 불러올 때는 <b><code class="inline">model.to("cuda")</code>를 하지 않는다.</b> Engine은 이미 특정 NVIDIA GPU용으로 빌드된 파일이기 때문이다. 같은 이유로 <b>다른 기기에서 만든 .engine은 그대로 쓸 수 없고</b>, 기기마다 다시 빌드해야 한다.</p></div>
+    </section>
+
+    <!-- ================= I ================= -->
+    <section class="chapter" id="sec-i">
+      <div class="chapter-head">
+        <span class="big-letter">I</span>
+        <div><h2>INT8 양자화</h2><span class="stage-tag">정밀도를 낮춰 한 단계 더</span></div>
+      </div>
+      <div class="prose"><p><b>양자화(Quantization)</b>는 가중치와 연산의 숫자 정밀도를 낮추는 최적화다. 모델 크기 · 메모리 사용량이 줄고 추론 속도가 오르는 대신 <b>정확도가 조금 떨어진다</b>. 자원이 제한된 Edge Device에서 특히 중요한 트레이드오프다.</p></div>
+
+      <table class="kv-table">
+        <tr><th>정밀도</th><th>비트</th><th>속도</th><th>정확도</th><th>추가 준비물</th></tr>
+        <tr><td>FP32</td><td class="num">32</td><td>기준</td><td>기준</td><td>없음</td></tr>
+        <tr><td>FP16</td><td class="num">16</td><td>빠름</td><td>거의 동일</td><td>없음 (<code>--fp16</code>)</td></tr>
+        <tr><td>INT8</td><td class="num">8</td><td>가장 빠름</td><td>감소</td><td><b>Calibration 데이터셋</b></td></tr>
+      </table>
+
+      <div class="callout">
+        <span class="label">왜 INT8만 Calibration이 필요한가</span>
+        <ul>
+          <li>INT8은 표현 가능한 값의 범위가 훨씬 작다 → <b>FP32의 어떤 값을 INT8의 어떤 값에 대응시킬지</b> 기준이 필요</li>
+          <li>대표 이미지를 모델에 흘려 각 Layer의 <b>값 분포를 분석</b>하고 Quantization Scale을 계산한다</li>
+          <li>그래서 데이터는 <b>실제 추론 환경과 최대한 비슷</b>해야 한다 → 노트북에서는 Jetson 카메라로 직접 500장 캡처</li>
+        </ul>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">calibration_capture.py</span><span>카메라에서 500장 수집 + YAML 생성</span></div>
+        <pre><code>NUM_IMAGES = <span class="tok-num">500</span>
+SAVE_EVERY_N_FRAMES = <span class="tok-num">5</span>       <span class="tok-com"># 연속 프레임은 거의 같아서 5장마다 저장</span>
+
+<span class="tok-kw">while</span> save_count &lt; NUM_IMAGES:
+    ret, frame = cap.read()
+    <span class="tok-kw">if</span> frame_count % SAVE_EVERY_N_FRAMES == <span class="tok-num">0</span>:
+        cv2.imwrite(<span class="tok-fn">str</span>(IMAGE_DIR / <span class="tok-str">f"{save_count:04d}.jpg"</span>), frame)
+        (LABEL_DIR / <span class="tok-str">f"{save_count:04d}.txt"</span>).touch()    <span class="tok-com"># 빈 라벨 파일 — 형식만 맞추면 됨</span>
+        save_count += <span class="tok-num">1</span>
+    frame_count += <span class="tok-num">1</span>
+
+calibration_yaml = {
+    <span class="tok-str">"path"</span>: <span class="tok-fn">str</span>(CALIBRATION_DIR.resolve()),
+    <span class="tok-str">"train"</span>: <span class="tok-str">"images"</span>, <span class="tok-str">"val"</span>: <span class="tok-str">"images"</span>,
+    <span class="tok-str">"names"</span>: model.names,
+}</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">왜 빈 라벨 파일인가</span><p>Calibration은 <b>학습이 아니라 값 분포 측정</b>이다. 정답이 필요 없으므로 라벨은 비어 있어도 되고, Ultralytics가 요구하는 <b>데이터셋 디렉터리 구조만 맞추면</b> 된다.</p></div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">export_int8.py</span><span>INT8 TensorRT 엔진 생성</span></div>
+        <pre><code>engine_path = model.export(
+    format=<span class="tok-str">"engine"</span>,
+    imgsz=<span class="tok-num">640</span>,
+    quantize=<span class="tok-num">8</span>,                                        <span class="tok-com"># ← INT8</span>
+    data=<span class="tok-str">"src/datasets/calibration/calibration.yaml"</span>,   <span class="tok-com"># ← Calibration 데이터</span>
+    batch=<span class="tok-num">1</span>, dynamic=<span class="tok-fn">False</span>, device=<span class="tok-num">0</span>, nms=<span class="tok-fn">False</span>,
+)</code></pre>
+      </div>
+
+      <div class="callout">
+        <span class="label">⚠ trtexec으로 INT8 엔진을 측정하려면 한 단계가 더 있다</span>
+        <ul>
+          <li>Ultralytics가 만든 <code class="inline">.engine</code>은 앞부분에 <b>전용 메타데이터</b>가 붙어 있다</li>
+          <li><code class="inline">trtexec</code>은 <b>순수 TensorRT Engine 형식만</b> 읽으므로 그대로는 측정할 수 없다</li>
+          <li>메타데이터를 떼어낸 <code class="inline">_raw.engine</code>을 만들어 <b>측정 전용</b>으로만 쓴다 — 실제 탐지에는 원본을 쓴다</li>
+        </ul>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">strip_metadata.py</span><span>앞 4바이트 = 메타데이터 길이</span></div>
+        <pre><code><span class="tok-kw">with</span> engine_path.open(<span class="tok-str">"rb"</span>) <span class="tok-kw">as</span> f:
+    metadata_length = <span class="tok-fn">int</span>.from_bytes(f.read(<span class="tok-num">4</span>), byteorder=<span class="tok-str">"little"</span>)
+    metadata = json.loads(f.read(metadata_length).decode(<span class="tok-str">"utf-8"</span>))
+    raw_engine = f.read()          <span class="tok-com"># 나머지가 진짜 TensorRT 엔진</span>
+
+raw_engine_path.write_bytes(raw_engine)</code></pre>
+      </div>
+
+      <div class="takeaway"><span class="mark">결과 해석</span><p>INT8 엔진으로도 실시간 탐지가 <b>약 30 FPS</b>로 나온다면 최적화 성공이다. 이는 모델의 상한이 30 FPS라서가 아니라 <b>카메라 파이프라인을 30 FPS로 설정했기 때문</b>이다. 순수 모델 속도 비교는 <code class="inline">trtexec</code>의 Throughput으로 <code class="inline">fp32 / fp16 / int8</code> 세 엔진을 나란히 놓고 봐야 한다.</p></div>
+    </section>
+
+    <!-- ================= J : ANSWER ================= -->
+    <section class="chapter" id="sec-j">
+      <div class="chapter-head">
+        <span class="big-letter">J</span>
+        <div><h2>실습 정답 코드</h2><span class="stage-tag">[ANSWER]_04_DL-Object-Detection.ipynb</span></div>
+      </div>
+      <div class="prose"><p>노트북의 <code class="inline">TODO</code> 셀에 대한 공식 정답입니다.</p></div>
+
+      <h3 style="font-size:16px;margin:26px 0 6px;">A. Color Segmentation → BBox <span style="color:var(--ink-faint);font-weight:400;">(셀 18 · 19 · 21 · 24)</span></h3>
+      <div class="code-card">
+        <div class="bar"><span class="fn">apple_bbox.py</span><span>마스크 → Contour → boundingRect</span></div>
+        <pre><code><span class="tok-com"># 1) Binary Mask — 빨강은 H가 원형이라 두 구간을 OR</span>
+apple_blur = cv2.GaussianBlur(apple, (<span class="tok-num">7</span>,<span class="tok-num">7</span>), <span class="tok-num">0</span>)
+apple_hsv  = cv2.cvtColor(apple_blur, cv2.COLOR_BGR2HSV)
+
+apple_mask1 = cv2.inRange(apple_hsv, red_lower1, red_upper1)
+apple_mask2 = cv2.inRange(apple_hsv, red_lower2, red_upper2)
+apple_mask  = cv2.bitwise_or(apple_mask1, apple_mask2)
+
+<span class="tok-com"># 2) Morphological Operation</span>
+kernel = np.ones((<span class="tok-num">5</span>, <span class="tok-num">5</span>), np.uint8)
+apple_mask = cv2.morphologyEx(apple_mask, cv2.MORPH_OPEN,  kernel)   <span class="tok-com"># 작은 noise 제거</span>
+apple_mask = cv2.morphologyEx(apple_mask, cv2.MORPH_CLOSE, kernel)   <span class="tok-com"># 끊어진 영역 연결</span>
+
+<span class="tok-com"># 3) Contour 추출 → 가장 큰 것 하나만</span>
+contours, _ = cv2.findContours(apple_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+<span class="tok-kw">if</span> <span class="tok-fn">len</span>(contours) &gt; <span class="tok-num">0</span>:
+    largest_contour = <span class="tok-fn">max</span>(contours, key=cv2.contourArea)
+
+    <span class="tok-com"># 반투명 초록 overlay</span>
+    largest_mask = np.zeros_like(apple_mask)
+    cv2.drawContours(largest_mask, [largest_contour], <span class="tok-num">-1</span>, <span class="tok-num">255</span>, thickness=cv2.FILLED)
+
+    mask_color = np.zeros_like(final_img)
+    mask_color[:, :, <span class="tok-num">1</span>] = largest_mask          <span class="tok-com"># G 채널에만 마스크</span>
+    final_img = cv2.addWeighted(final_img, <span class="tok-num">1.0</span>, mask_color, <span class="tok-num">0.35</span>, <span class="tok-num">0</span>)
+
+    cv2.drawContours(final_img, [largest_contour], <span class="tok-num">-1</span>, (<span class="tok-num">0</span>,<span class="tok-num">255</span>,<span class="tok-num">0</span>), <span class="tok-num">2</span>)
+
+<span class="tok-com"># 4) BBox — boundingRect는 (x, y, w, h)를 반환</span>
+x, y, w, h = cv2.boundingRect(largest_contour)
+
+<span class="tok-com"># 5) cv2.rectangle이 쓰는 (x1,y1)-(x2,y2)로 변환</span>
+x1, y1 = x, y
+x2, y2 = x + w, y + h
+draw_bbox(apple_rgb, (x1, y1), (x2, y2), (<span class="tok-num">0</span>,<span class="tok-num">255</span>,<span class="tok-num">0</span>), txt=<span class="tok-str">"Apple, 0.98"</span>)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">POINT</span><p><code class="inline">mask_color[:, :, 1] = largest_mask</code> — 3채널 이미지의 <b>G 채널에만</b> 마스크를 넣어 초록 overlay를 만듭니다. <code class="inline">cv2.addWeighted(src1, α, src2, β, γ)</code>는 <code class="inline">src1×α + src2×β + γ</code>를 계산하므로 <code class="inline">α=1.0, β=0.35</code>면 원본 위에 35% 농도로 덧씌워집니다.</p></div>
+
+      <h3 style="font-size:16px;margin:30px 0 6px;">B. 좌표 변환 · IoU <span style="color:var(--ink-faint);font-weight:400;">(셀 30)</span></h3>
+      <div class="code-card">
+        <div class="bar"><span class="fn">iou.py</span><span>ZeroDivisionError 처리까지</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">convert_bbox_coord</span>(bbox):
+    x, y, w, h = bbox
+    <span class="tok-kw">return</span> (x, y, x + w, y + h)
+
+
+<span class="tok-kw">def</span> <span class="tok-fn">calculate_iou</span>(bbox_a, bbox_b):
+    xa_1, ya_1, xa_2, ya_2 = bbox_a
+    xb_1, yb_1, xb_2, yb_2 = bbox_b
+
+    intersection_x1 = <span class="tok-fn">max</span>(xa_1, xb_1)
+    intersection_y1 = <span class="tok-fn">max</span>(ya_1, yb_1)
+    intersection_x2 = <span class="tok-fn">min</span>(xa_2, xb_2)
+    intersection_y2 = <span class="tok-fn">min</span>(ya_2, yb_2)
+
+    intersection_width  = <span class="tok-fn">max</span>(<span class="tok-num">0</span>, intersection_x2 - intersection_x1)
+    intersection_height = <span class="tok-fn">max</span>(<span class="tok-num">0</span>, intersection_y2 - intersection_y1)
+    intersection_area   = intersection_width * intersection_height
+
+    area_a = (xa_2 - xa_1) * (ya_2 - ya_1)
+    area_b = (xb_2 - xb_1) * (yb_2 - yb_1)
+    union_area = area_a + area_b - intersection_area
+
+    <span class="tok-kw">if</span> union_area == <span class="tok-num">0</span>:
+        <span class="tok-kw">return</span> <span class="tok-num">0.0</span>
+
+    <span class="tok-kw">return</span> intersection_area / union_area</code></pre>
+      </div>
+
+      <h3 style="font-size:16px;margin:30px 0 6px;">C. NMS <span style="color:var(--ink-faint);font-weight:400;">(셀 51 · 52)</span></h3>
+      <div class="code-card">
+        <div class="bar"><span class="fn">prune_low_conf.py</span><span>Confidence Thresholding</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">prune_low_conf</span>(boxes, scores, conf_threshold=<span class="tok-num">0.5</span>):
+    pruned_boxes = []
+    pruned_scores = []
+
+    <span class="tok-kw">for</span> box, score <span class="tok-kw">in</span> <span class="tok-fn">zip</span>(boxes, scores):
+        <span class="tok-kw">if</span> score &gt;= conf_threshold:
+            pruned_boxes.append(box)
+            pruned_scores.append(score)
+
+    <span class="tok-kw">return</span> pruned_boxes, pruned_scores</code></pre>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">apply_nms.py</span><span>공식 정답 — NumPy Boolean 인덱싱으로 한 번에 거른다</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">apply_nms</span>(boxes, scores, iou_threshold=<span class="tok-num">0.5</span>):
+    boxes  = np.array(boxes,  dtype=np.float32)
+    scores = np.array(scores, dtype=np.float32)
+
+    <span class="tok-com"># Confidence Score가 높은 순서대로 index 정렬 (argsort는 오름차순이라 뒤집는다)</span>
+    sorted_indices = np.argsort(scores)[::<span class="tok-num">-1</span>]
+
+    keep_indices = []
+
+    <span class="tok-kw">while</span> <span class="tok-fn">len</span>(sorted_indices) &gt; <span class="tok-num">0</span>:
+        <span class="tok-com"># 현재 가장 높은 Confidence Score를 가진 박스 선택</span>
+        current_index = sorted_indices[<span class="tok-num">0</span>]
+        keep_indices.append(current_index)
+
+        <span class="tok-kw">if</span> <span class="tok-fn">len</span>(sorted_indices) == <span class="tok-num">1</span>:
+            <span class="tok-kw">break</span>
+
+        remaining_indices = sorted_indices[<span class="tok-num">1</span>:]
+        remaining_boxes   = boxes[remaining_indices]
+
+        <span class="tok-com"># 선택된 박스와 나머지 박스들의 IoU 계산</span>
+        iou_values = []
+        <span class="tok-kw">for</span> remaining_box <span class="tok-kw">in</span> remaining_boxes:
+            iou_values.append(calculate_iou(boxes[current_index], remaining_box))
+        iou_values = np.array(iou_values)
+
+        <span class="tok-com"># IoU가 Threshold 이하인 박스만 유지 ← Boolean 인덱싱</span>
+        sorted_indices = remaining_indices[iou_values &lt;= iou_threshold]
+
+    nms_boxes  = boxes[keep_indices].astype(<span class="tok-fn">int</span>).tolist()
+    nms_scores = scores[keep_indices].tolist()
+
+    <span class="tok-kw">return</span> nms_boxes, nms_scores</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">코드 읽는 법</span><p>핵심은 마지막에서 두 번째 줄입니다. <code class="inline">remaining_indices[iou_values &lt;= iou_threshold]</code> — <b>Boolean 배열로 인덱싱</b>해 조건을 만족하는 인덱스만 한 번에 남깁니다(01 세션의 Boolean 마스크가 여기 쓰입니다). 반복문으로 하나씩 지우는 것보다 짧고 빠릅니다.<br><br>이 구현은 <code class="inline">cv2.dnn.NMSBoxes</code>와 <b>동일한 결과</b>를 냅니다(시드 4개로 확인). 다만 정답 버전은 <code class="inline">boxes</code>를 <code class="inline">np.array</code>로 바꾸므로 <b>반환값이 리스트의 리스트</b>가 되고, 좌표가 <code class="inline">int</code>로 잘립니다.</p></div>
+
+      <h3 style="font-size:16px;margin:30px 0 6px;">Section Project</h3>
+      <div class="callout">
+        <span class="label">신호등 색 판단 (정답 노트북에도 비어 있음)</span>
+        <ul>
+          <li><code class="inline">src/videos/section4_project_traffic.mp4</code>를 <code class="inline">cv2.VideoCapture</code>로 읽는다</li>
+          <li>YOLO <code class="inline">classes=[9]</code>(traffic light)로 탐지 → <code class="inline">boundingRect</code> 영역을 crop</li>
+          <li>crop된 ROI를 HSV로 바꿔 빨강·노랑·초록 <code class="inline">inRange</code> 마스크의 <b>픽셀 수를 비교</b>해 가장 많은 색을 선택</li>
+          <li><code class="inline">cv2.putText</code>로 프레임 위에 현재 신호 상태를 표시</li>
+          <li>06 세션에서는 같은 문제를 <b>Gemma 멀티모달</b>로 다시 풉니다 — ROI 이미지를 그대로 LLM에 넘겨 색을 판단시킵니다</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer class="page-end">
+      원본: <code class="inline">04_DL-Object-Detection.ipynb</code> (<code class="inline">linux-work</code> 브랜치) · Physical AI Vision-LLM 융합 시청각 멀티모달 시스템 세션 4 정리<br>
+      Section Project: <code class="inline">src/videos/section4_project_traffic.mp4</code> — 프레임별 신호등 색(빨강/초록/파랑) 판단 후 화면에 표시
+    </footer>
+  </main>
+</div>
+
+<script>
+  (function(){
+    var toggle = document.getElementById('tocToggle');
+    var nav = document.getElementById('tocNav');
+    if(toggle){
+      toggle.addEventListener('click', function(){
+        nav.classList.toggle('open');
+        toggle.textContent = nav.classList.contains('open') ? '목차 접기 ▴' : '목차 펼치기 ▾';
+      });
+    }
+    var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a'));
+    var sections = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+    function onScroll(){
+      var pos = window.scrollY + 120;
+      var activeIdx = 0;
+      for(var i=0;i<sections.length;i++){
+        if(sections[i] && sections[i].offsetTop <= pos) activeIdx = i;
+      }
+      links.forEach(function(a,i){ a.classList.toggle('active', i===activeIdx); });
+    }
+    document.addEventListener('scroll', onScroll, {passive:true});
+    onScroll();
+  })();
+</script>
+</body>
+</html>

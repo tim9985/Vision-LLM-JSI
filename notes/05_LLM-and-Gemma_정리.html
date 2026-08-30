@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM과 Gemma 실습 노트</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;display=swap">
+
+<style>
+  :root{
+    --bg:#F1F3F1;
+    --surface:#FFFFFF;
+    --surface-2:#E7EBE8;
+    --surface-3:#DCE2DE;
+    --ink:#14181A;
+    --ink-soft:#55605C;
+    --ink-faint:#8A948F;
+    --border:#D5DBD7;
+    --accent:#C8631F;
+    --accent-soft:#F1E0CE;
+    --accent-ink:#FFFFFF;
+    --accent2:#227373;
+    --accent2-soft:#DCEAEA;
+    --red:#B23A32;
+    --code-kw:#8B4A9C;
+    --code-str:#2E7D46;
+    --code-com:#8A948F;
+    --code-fn:#1D6FB8;
+    --code-num:#B2622E;
+    --shadow: 0 1px 2px rgba(20,24,26,.06), 0 8px 24px -12px rgba(20,24,26,.18);
+    --radius: 10px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#14181A;
+      --surface:#1B2023;
+      --surface-2:#20272A;
+      --surface-3:#283130;
+      --ink:#E8EDE9;
+      --ink-soft:#9AA8A2;
+      --ink-faint:#657069;
+      --border:#313B38;
+      --accent:#E39150;
+      --accent-soft:#3A2A1B;
+      --accent-ink:#1A1006;
+      --accent2:#5FC2C0;
+      --accent2-soft:#17302F;
+      --red:#E07B72;
+      --code-kw:#C892D8;
+      --code-str:#7FCB93;
+      --code-com:#7C8983;
+      --code-fn:#7EB6E8;
+      --code-num:#E3A374;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14181A;
+    --surface:#1B2023;
+    --surface-2:#20272A;
+    --surface-3:#283130;
+    --ink:#E8EDE9;
+    --ink-soft:#9AA8A2;
+    --ink-faint:#657069;
+    --border:#313B38;
+    --accent:#E39150;
+    --accent-soft:#3A2A1B;
+    --accent-ink:#1A1006;
+    --accent2:#5FC2C0;
+    --accent2-soft:#17302F;
+    --red:#E07B72;
+    --code-kw:#C892D8;
+    --code-str:#7FCB93;
+    --code-com:#7C8983;
+    --code-fn:#7EB6E8;
+    --code-num:#E3A374;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"IBM Plex Sans","IBM Plex Sans KR",-apple-system,sans-serif;
+    font-size:16px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  a{ color:var(--accent2); text-decoration-thickness: 1.5px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, summary:focus-visible{
+    outline: 2.5px solid var(--accent2); outline-offset: 2px; border-radius:4px;
+  }
+
+  h1,h2,h3,h4{
+    font-family:"IBM Plex Sans Condensed","IBM Plex Sans KR",sans-serif;
+    font-weight:700;
+    text-wrap:balance;
+    margin:0;
+    letter-spacing:.1px;
+  }
+
+  .layout{
+    display:grid;
+    grid-template-columns: 250px minmax(0,1fr);
+    max-width:1180px;
+    margin:0 auto;
+    align-items:start;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+    padding:28px 14px 28px 20px;
+    border-right:1px solid var(--border);
+    scrollbar-width:thin;
+  }
+  .brand{
+    display:block;
+    font-family:"IBM Plex Sans Condensed",sans-serif;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-bottom:4px;
+  }
+  .brand strong{
+    display:block;
+    font-size:19px;
+    letter-spacing:0;
+    text-transform:none;
+    color:var(--ink);
+    margin-top:6px;
+    line-height:1.25;
+  }
+  nav.toc{ margin-top:26px; }
+  nav.toc .group-label{
+    font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--ink-faint); font-weight:600; padding:0 10px; margin:18px 0 6px;
+  }
+  nav.toc .group-label:first-child{ margin-top:0; }
+  nav.toc ol{ list-style:none; margin:0; padding:0; counter-reset:none; }
+  nav.toc a{
+    display:flex; align-items:baseline; gap:10px;
+    padding:6px 10px; border-radius:7px;
+    color:var(--ink-soft); text-decoration:none; font-size:14.5px;
+    transition:background .12s ease, color .12s ease;
+  }
+  nav.toc a:hover{ background:var(--surface-2); color:var(--ink); }
+  nav.toc a .letter{
+    font-family:"IBM Plex Mono",monospace; font-size:12.5px; font-weight:600;
+    color:var(--accent); width:1.1em; flex:none;
+  }
+  nav.toc a.active{ background:var(--accent-soft); color:var(--ink); }
+  nav.toc a.active .letter{ color:var(--accent); }
+
+  /* ---------- Main ---------- */
+  main{ padding:56px 44px 120px; min-width:0; }
+
+  header.hero{ max-width:660px; margin-bottom:54px; }
+  .eyebrow{
+    font-family:"IBM Plex Sans Condensed",sans-serif;
+    font-size:12.5px; letter-spacing:.11em; text-transform:uppercase;
+    color:var(--accent); font-weight:600; margin-bottom:14px; display:block;
+  }
+  header.hero h1{ font-size:38px; line-height:1.15; margin-bottom:16px; }
+  header.hero .sub{ color:var(--ink-soft); font-size:16.5px; max-width:58ch; }
+
+  .stage-row{
+    display:flex; flex-wrap:wrap; gap:10px; margin-top:26px;
+  }
+  .stage-chip{
+    display:flex; align-items:center; gap:8px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:999px; padding:7px 14px 7px 10px; font-size:13.5px; color:var(--ink-soft);
+  }
+  .stage-chip b{ color:var(--ink); font-weight:600; }
+  .stage-chip .n{
+    width:20px; height:20px; border-radius:50%; background:var(--accent2-soft); color:var(--accent2);
+    display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:700;
+    font-family:"IBM Plex Mono",monospace;
+  }
+
+  section.chapter{
+    padding-top:52px; margin-top:6px; border-top:1px solid var(--border);
+    scroll-margin-top: 20px;
+  }
+  section.chapter:first-of-type{ border-top:none; padding-top:0; }
+
+  .chapter-head{ display:flex; gap:18px; align-items:flex-start; margin-bottom:22px; }
+  .chapter-head .big-letter{
+    font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700;
+    font-size:44px; line-height:1; color:var(--accent2); flex:none;
+    min-width:.9em;
+  }
+  .chapter-head h2{ font-size:25px; padding-top:5px; }
+  .chapter-head .stage-tag{
+    display:inline-block; margin-top:8px;
+    font-size:11.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:600;
+    color:var(--ink-faint);
+  }
+
+  .prose{ max-width:70ch; }
+  .prose p{ margin:0 0 14px; color:var(--ink); }
+  .prose p.soft{ color:var(--ink-soft); }
+
+  .callout{
+    background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent2);
+    border-radius:8px; padding:16px 20px; margin:18px 0 22px; max-width:70ch;
+    box-shadow:var(--shadow);
+  }
+  .callout .label{
+    font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
+    color:var(--accent2); margin-bottom:8px; display:block;
+  }
+  .callout ul{ margin:0; padding-left:20px; }
+  .callout li{ margin-bottom:6px; color:var(--ink); }
+  .callout li:last-child{ margin-bottom:0; }
+  .callout li .k{ color:var(--ink-soft); }
+
+  .takeaway{
+    display:flex; gap:12px; align-items:flex-start;
+    background:var(--accent-soft); border-radius:8px; padding:14px 18px;
+    margin-top:22px; max-width:70ch;
+  }
+  .takeaway .mark{
+    font-family:"IBM Plex Mono",monospace; font-weight:700; color:var(--accent); font-size:13px;
+    flex:none; margin-top:2px;
+  }
+  .takeaway p{ margin:0; color:var(--ink); font-size:14.5px; }
+
+  /* formula */
+  .formula{
+    font-family:"IBM Plex Mono",monospace; background:var(--surface-2);
+    border:1px solid var(--border); border-radius:8px;
+    padding:16px 22px; margin:16px 0; max-width:70ch;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    font-size:15.5px; overflow-x:auto;
+  }
+  .formula .frac{
+    display:inline-flex; flex-direction:column; align-items:center; vertical-align:middle;
+    margin:0 3px; line-height:1.3;
+  }
+  .formula .frac .num{ border-bottom:1.4px solid currentColor; padding:0 4px 1px; }
+  .formula .frac .den{ padding:1px 4px 0; }
+  .formula sup{ font-size:.7em; }
+
+  /* code card */
+  .code-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    margin:16px 0 22px; overflow:hidden; box-shadow:var(--shadow);
+    max-width: 100%;
+  }
+  .code-card .bar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:9px 16px; background:var(--surface-2); border-bottom:1px solid var(--border);
+    font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-soft);
+  }
+  .code-card .bar .fn{ color:var(--ink); font-weight:600; }
+  .code-card pre{
+    margin:0; padding:16px 18px; overflow-x:auto;
+    font-family:"IBM Plex Mono",monospace; font-size:13.3px; line-height:1.62;
+  }
+  .code-card code{ color:var(--ink); }
+  .tok-kw{ color:var(--code-kw); }
+  .tok-str{ color:var(--code-str); }
+  .tok-com{ color:var(--code-com); font-style:italic; }
+  .tok-fn{ color:var(--code-fn); }
+  .tok-num{ color:var(--code-num); }
+
+  .kv-table{ width:100%; border-collapse:collapse; margin:14px 0 20px; max-width:70ch; font-size:14px; }
+  .kv-table th, .kv-table td{
+    text-align:left; padding:8px 12px; border-bottom:1px solid var(--border);
+  }
+  .kv-table th{ color:var(--ink-faint); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.05em; }
+  .kv-table td code{ font-family:"IBM Plex Mono",monospace; font-size:12.8px; background:var(--surface-2); padding:1px 5px; border-radius:4px; }
+  .kv-table td.num{ font-variant-numeric: tabular-nums; }
+
+  .compare{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:16px 0 22px; max-width:70ch; }
+  .compare .box{ background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
+  .compare .box h4{ font-size:14px; margin-bottom:8px; color:var(--ink); }
+  .compare .box.pos{ border-left:3px solid var(--accent2); }
+  .compare .box.neg{ border-left:3px solid var(--red); }
+  .compare ul{ margin:0; padding-left:18px; font-size:13.6px; color:var(--ink-soft); }
+  .compare li{ margin-bottom:4px; }
+
+  /* kernel grid visual */
+  .kernel-row{ display:flex; gap:28px; flex-wrap:wrap; margin:18px 0 22px; }
+  .kernel{ text-align:center; }
+  .kernel .cap{ font-size:12.5px; color:var(--ink-soft); margin-bottom:8px; }
+  .kernel .grid3{
+    display:grid; grid-template-columns:repeat(3,34px); grid-template-rows:repeat(3,34px);
+    gap:3px; background:var(--border); border:1px solid var(--border); border-radius:6px; overflow:hidden;
+  }
+  .kernel .grid3 span{
+    background:var(--surface); display:flex; align-items:center; justify-content:center;
+    font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--ink);
+  }
+  .kernel .grid3 span.center{ background:var(--accent-soft); color:var(--accent); font-weight:700; }
+  .kernel .grid3 span.neg{ color:var(--red); }
+
+  /* HSV wheel */
+  .hsv-wrap{ display:flex; gap:32px; align-items:center; flex-wrap:wrap; margin:18px 0 24px; }
+  .hsv-wrap svg{ flex:none; }
+  .hsv-legend{ font-size:13.6px; color:var(--ink-soft); max-width:34ch; }
+  .hsv-legend div{ margin-bottom:6px; }
+  .hsv-legend b{ color:var(--ink); }
+
+  .pipeline{
+    display:flex; align-items:center; flex-wrap:wrap; gap:0; margin:18px 0 24px; max-width:70ch;
+  }
+  .pipeline .step{
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:9px 14px; font-size:13px; color:var(--ink); white-space:nowrap;
+  }
+  .pipeline .arrow{ color:var(--ink-faint); padding:0 8px; font-size:15px; }
+
+  footer.page-end{
+    max-width:70ch; margin-top:64px; padding-top:26px; border-top:1px solid var(--border);
+    color:var(--ink-faint); font-size:13px;
+  }
+
+  code.inline{
+    font-family:"IBM Plex Mono",monospace; background:var(--surface-2);
+    padding:1.5px 6px; border-radius:5px; font-size:.88em; color:var(--ink);
+  }
+
+  .mobile-toc-toggle{ display:none; }
+
+  @media (max-width: 900px){
+    .layout{ grid-template-columns: 1fr; }
+    .sidebar{
+      position:static; height:auto; border-right:none; border-bottom:1px solid var(--border);
+      padding:16px 20px;
+    }
+    nav.toc{ display:none; margin-top:14px; }
+    nav.toc.open{ display:block; }
+    .mobile-toc-toggle{
+      display:flex; align-items:center; gap:8px; width:100%;
+      background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
+      padding:10px 14px; color:var(--ink); font-size:13.5px; font-weight:600;
+      font-family:"IBM Plex Sans Condensed",sans-serif; letter-spacing:.03em;
+    }
+    main{ padding:38px 20px 90px; }
+    .compare{ grid-template-columns:1fr; }
+    header.hero h1{ font-size:30px; }
+  }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; scroll-behavior:auto !important; } }
+
+  html{ scroll-behavior:smooth; }
+
+  /* ---------- Print (PDF로 저장 시) ---------- */
+  @media print{
+    :root{
+      --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F3F4F2; --surface-3:#EAEDEA;
+      --ink:#14181A; --ink-soft:#4A5450; --ink-faint:#78827D; --border:#CBD2CD;
+      --shadow:none;
+    }
+    * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body{ font-size:12.5px; }
+    .layout{ display:block; max-width:none; }
+    .sidebar{ display:none; }
+    main{ padding:0 6mm; }
+    header.hero{ margin-bottom:30px; }
+    .stage-chip{ break-inside:avoid; }
+    section.chapter{
+      border-top:1px solid var(--border);
+      break-before:page; padding-top:24px;
+    }
+    section.chapter:first-of-type{ break-before:avoid; }
+    .code-card, .callout, .compare, .kv-table, .takeaway, .kernel-row, .hsv-wrap, .formula, .pipeline{
+      break-inside:avoid;
+    }
+    a{ color:var(--ink); text-decoration:none; }
+    .code-card pre{ white-space:pre-wrap; word-break:break-word; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <span class="brand">Study Notes<strong>LLM과 Gemma<br>섹션 5 정리</strong></span>
+    <button class="mobile-toc-toggle" id="tocToggle" type="button">목차 펼치기 ▾</button>
+    <nav class="toc" id="tocNav">
+      <div class="group-label">01 · 원격 LLM 다루기</div>
+      <ol>
+        <li><a href="#sec-a"><span class="letter">A</span>Hugging Face · Token 관리</a></li>
+        <li><a href="#sec-b"><span class="letter">B</span>Token과 Tokenizer</a></li>
+        <li><a href="#sec-c"><span class="letter">C</span>Context Window</a></li>
+      </ol>
+      <div class="group-label">02 · 대화 설계</div>
+      <ol>
+        <li><a href="#sec-d"><span class="letter">D</span>Prompt Engineering</a></li>
+        <li><a href="#sec-e"><span class="letter">E</span>LLM의 Memory</a></li>
+      </ol>
+      <div class="group-label">03 · 로컬 실행</div>
+      <ol>
+        <li><a href="#sec-f"><span class="letter">F</span>Gemma 로컬 구동</a></li>
+      </ol>
+    </nav>
+  </aside>
+
+  <main>
+    <header class="hero">
+      <span class="eyebrow">05-LLM_and_Gemma.ipynb 기반 정리</span>
+      <h1>LLM과 Gemma</h1>
+      <p class="sub">Hugging Face 원격 추론으로 LLM 사용법을 익힌 뒤, Token·Context Window·Prompt·Memory의 원리를 확인하고,
+      최종적으로 Gemma를 Jetson에 내려받아 인터넷 없이 로컬에서 돌리기까지의 과정입니다.</p>
+      <div class="stage-row">
+        <div class="stage-chip"><span class="n">1</span> <b>원격</b>&nbsp;InferenceClient · Tokenizer</div>
+        <div class="stage-chip"><span class="n">2</span> <b>대화 설계</b>&nbsp;role · content · Memory</div>
+        <div class="stage-chip"><span class="n">3</span> <b>로컬</b>&nbsp;GGUF · llama.cpp · CUDA</div>
+      </div>
+    </header>
+
+    <section class="chapter" id="sec-a">
+      <div class="chapter-head">
+        <span class="big-letter">A</span>
+        <div><h2>Hugging Face · Token 관리</h2><span class="stage-tag">먼저 원격으로 감을 잡는다</span></div>
+      </div>
+      <div class="prose">
+        <p>최종 목표는 Jetson에서 LLM을 직접 돌리는 것이지만, 처음부터 로컬로 가면 모델 다운로드·메모리 관리·라이브러리 설정이 한꺼번에 걸립니다. 그래서 먼저 <b>Hugging Face Inference Provider</b>로 원격 추론을 해서 LLM 사용법만 익힙니다.</p>
+      </div>
+      <table class="kv-table">
+        <tr><th>자연어 처리 방식</th><th>특징</th></tr>
+        <tr><td>규칙 기반</td><td>사람이 직접 언어 규칙 작성</td></tr>
+        <tr><td>통계 기반</td><td>단어의 빈도와 확률 활용</td></tr>
+        <tr><td>머신러닝 기반</td><td>데이터에서 특징과 패턴 학습</td></tr>
+        <tr><td>딥러닝 기반</td><td>신경망이 단어 순서와 문맥 처리</td></tr>
+        <tr><td><b>LLM 기반</b></td><td><b>대규모 언어 모델 하나로 다양한 작업 수행</b></td></tr>
+      </table>
+
+      <div class="callout">
+        <span class="label">⚠ Access Token을 코드에 직접 쓰면 안 되는 이유</span>
+        <ul>
+          <li>코드를 공유할 때 Token이 함께 노출됨</li>
+          <li>GitHub에 업로드할 때 <b>Token이 공개</b>됨</li>
+          <li>Jupyter Notebook은 <b>실행 결과에도</b> Token이 남을 수 있음</li>
+        </ul>
+      </div>
+
+      <div class="pipeline">
+        <div class="step">.env 파일<br><span style="color:var(--ink-faint);">HF_TOKEN=hf_...</span></div><span class="arrow">→</span>
+        <div class="step">.gitignore에 .env 추가<br><span style="color:var(--ink-faint);">코드만 공유</span></div><span class="arrow">→</span>
+        <div class="step" style="border-color:var(--accent2);">load_dotenv()<br><span style="color:var(--ink-faint);">os.getenv로 읽기</span></div>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">setup.sh</span><span>설치와 .env 생성</span></div>
+        <pre><code>pip install huggingface_hub python-dotenv
+
+cd repo_folder
+touch .gitignore     <span class="tok-com"># 안에 .env 한 줄 추가</span>
+touch .env           <span class="tok-com"># 안에 HF_TOKEN=복사한_토큰</span></code></pre>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">first_llm.py</span><span>원격 추론 최소 코드</span></div>
+        <pre><code><span class="tok-kw">import</span> os
+<span class="tok-kw">from</span> dotenv <span class="tok-kw">import</span> load_dotenv
+<span class="tok-kw">from</span> huggingface_hub <span class="tok-kw">import</span> InferenceClient
+
+load_dotenv()                          <span class="tok-com"># .env를 환경 변수로 로드</span>
+TOKEN = os.getenv(<span class="tok-str">"HF_TOKEN"</span>)
+MODEL_ID = <span class="tok-str">"google/gemma-3-4b-it"</span>
+
+client = InferenceClient(api_key=TOKEN)
+
+response = client.chat.completions.create(
+    model=MODEL_ID,
+    messages=[{<span class="tok-str">"role"</span>: <span class="tok-str">"user"</span>, <span class="tok-str">"content"</span>: <span class="tok-str">"한 문장으로 오늘 저녁 메뉴 추천해줘."</span>}],
+    max_tokens=<span class="tok-num">150</span>,
+    temperature=<span class="tok-num">0.7</span>,
+)
+
+print(response.choices[<span class="tok-num">0</span>].message.content)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">POINT</span><p><code class="inline">temperature</code>는 출력의 무작위성입니다 — <b>0에 가까울수록 결정적</b>(같은 입력에 같은 답), 높을수록 다양해집니다. 06 세션에서 신호등 색을 판단할 때는 <code class="inline">temperature=0.0</code>을 씁니다.</p></div>
+    </section>
+
+    <section class="chapter" id="sec-b">
+      <div class="chapter-head">
+        <span class="big-letter">B</span>
+        <div><h2>Token과 Tokenizer</h2><span class="stage-tag">LLM이 실제로 보는 단위</span></div>
+      </div>
+      <div class="compare">
+        <div class="box pos"><h4>Token</h4><ul><li>LLM이 텍스트를 처리하는 <b>기본 단위</b></li><li>단어 · 단어의 일부 · 문자</li><li>각 Token은 숫자 ID로 변환</li></ul></div>
+        <div class="box pos"><h4>Tokenizer</h4><ul><li>텍스트를 Token으로 분리</li><li>Token을 Token ID로 변환</li><li><b>모델마다 다르다</b></li></ul></div>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">tokenize.py</span><span>2단계를 encode/decode 한 줄로</span></div>
+        <pre><code><span class="tok-kw">from</span> transformers <span class="tok-kw">import</span> AutoTokenizer
+
+tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, token=TOKEN)
+
+text = <span class="tok-str">"Vision-LLM Multimodal System"</span>
+
+<span class="tok-com"># 방법 1 — 두 단계</span>
+tokens    = tokenizer.tokenize(text)
+token_ids = tokenizer.convert_tokens_to_ids(tokens)
+
+<span class="tok-com"># 방법 2 — 한 번에 (권장)</span>
+input_ids = tokenizer.encode(text, add_special_tokens=<span class="tok-fn">False</span>)
+
+<span class="tok-com"># 되돌리기</span>
+converted_tokens = tokenizer.convert_ids_to_tokens(input_ids)
+restored_text    = <span class="tok-str">""</span>.join(converted_tokens).replace(<span class="tok-str">"▁"</span>, <span class="tok-str">" "</span>)   <span class="tok-com"># 수동</span>
+decoded_text     = tokenizer.decode(input_ids)                       <span class="tok-com"># 한 번에</span></code></pre>
+      </div>
+      <div class="callout">
+        <span class="label">Special Token — <code class="inline">add_special_tokens</code>가 하는 일</span>
+        <ul>
+          <li><code class="inline">True</code>로 두면 Token ID 리스트 <b>앞에 하나가 더 붙는다</b></li>
+          <li>그것이 <code class="inline">&lt;bos&gt;</code> — <b>Beginning of Sequence</b>, 입력의 시작점을 모델에게 알리는 특수 토큰</li>
+          <li>실제 문자열에는 보이지 않지만 <b>모델 내부에서는 명확히 구분</b>된다</li>
+        </ul>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">model_input.py</span><span>모델이 실제로 받는 형태</span></div>
+        <pre><code>inputs = tokenizer(text, return_tensors=<span class="tok-str">"pt"</span>)   <span class="tok-com"># "pt" = PyTorch Tensor</span>
+
+inputs[<span class="tok-str">"input_ids"</span>]          <span class="tok-com"># 각 Token의 ID (bos 포함)</span>
+inputs[<span class="tok-str">"attention_mask"</span>]     <span class="tok-com"># 어떤 Token을 실제 입력으로 처리할지</span>
+inputs[<span class="tok-str">"input_ids"</span>].shape</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">⚠ Gated Model</span><p>Gemma는 <b>Gated Model</b>입니다 — 사용 전에 <a href="https://huggingface.co/google/gemma-3-4b-it">모델 페이지</a>에서 <b>Acknowledge License</b>를 눌러 라이선스에 동의해야 Tokenizer조차 내려받을 수 있습니다. 동의 없이 실행하면 인증 오류가 납니다.</p></div>
+      <div class="takeaway"><span class="mark">설치 주의</span><p><code class="inline">pip install "numpy==1.23.0" transformers sentencepiece</code> — NumPy 버전을 <b>함께 명시</b>해야 transformers 설치 과정에서 NumPy가 2.x로 올라가지 않습니다. 04 세션에서 GStreamer 호환성 때문에 1.23.0으로 고정했던 그 제약이 계속 이어집니다.</p></div>
+    </section>
+
+    <section class="chapter" id="sec-c">
+      <div class="chapter-head">
+        <span class="big-letter">C</span>
+        <div><h2>Context Window</h2><span class="stage-tag">한 번에 볼 수 있는 Token의 한도</span></div>
+      </div>
+      <div class="prose"><p>Context Window는 LLM이 한 번에 참고할 수 있는 Token 범위입니다. <b>입력과 생성된 내용이 모두 포함</b>되며, 한도를 넘으면 일부 내용은 사용할 수 없습니다.</p></div>
+      <div class="formula">Total Tokens = Input Tokens (Prompt) + Output Tokens (생성) ≤ Context Window</div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">token_count.py</span><span>목표 Token 수까지 텍스트를 늘리는 함수</span></div>
+        <pre><code><span class="tok-kw">def</span> <span class="tok-fn">make_long_prompt</span>(tokenizer, text, target_tokens):
+    prompt = <span class="tok-str">""</span>
+    <span class="tok-kw">while</span> <span class="tok-fn">True</span>:
+        prompt += text
+        token_count = <span class="tok-fn">len</span>(tokenizer.encode(prompt, add_special_tokens=<span class="tok-fn">False</span>))
+        <span class="tok-kw">if</span> token_count &gt;= target_tokens:
+            <span class="tok-kw">break</span>
+    <span class="tok-kw">return</span> prompt
+
+prompt_0500 = make_long_prompt(tokenizer, base_text, <span class="tok-num">500</span>)
+prompt_4000 = make_long_prompt(tokenizer, base_text, <span class="tok-num">4000</span>)</code></pre>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">usage.py</span><span>실제 사용량은 응답이 알려준다</span></div>
+        <pre><code>print(<span class="tok-str">f"Input Tokens  : {response.usage.prompt_tokens}"</span>)
+print(<span class="tok-str">f"Output Tokens : {response.usage.completion_tokens}"</span>)
+print(<span class="tok-str">f"Total Tokens  : {response.usage.total_tokens}"</span>)</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">POINT</span><p>짧은 한국어 문장 <code class="inline">"LLM에 대해 설명해줘."</code>가 약 <b>10 Token</b>입니다. Prompt를 길게 넣을수록 <b>답변에 쓸 수 있는 Token이 줄어듭니다</b> — 로컬 Gemma를 <code class="inline">n_ctx=2048</code>로 띄우면 Prompt와 답변을 합쳐 2048이 한도라는 뜻입니다.</p></div>
+    </section>
+
+    <section class="chapter" id="sec-d">
+      <div class="chapter-head">
+        <span class="big-letter">D</span>
+        <div><h2>Prompt Engineering</h2><span class="stage-tag">messages = [ {role, content} ]</span></div>
+      </div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">messages.py</span><span>list 안에 dictionary</span></div>
+        <pre><code>messages = [
+    {
+        <span class="tok-str">"role"</span>:    <span class="tok-str">"user"</span>,                              <span class="tok-com"># 누가 말했는지</span>
+        <span class="tok-str">"content"</span>: <span class="tok-str">"LLM이 무엇인지 한 문장으로 설명해줘."</span>,   <span class="tok-com"># 무엇을 말했는지</span>
+    }
+]
+
+<span class="tok-fn">type</span>(messages)        <span class="tok-com"># list</span>
+<span class="tok-fn">type</span>(messages[<span class="tok-num">0</span>])     <span class="tok-com"># dict</span>
+messages[<span class="tok-num">0</span>][<span class="tok-str">"role"</span>]</code></pre>
+      </div>
+      <table class="kv-table">
+        <tr><th>role</th><th>의미</th></tr>
+        <tr><td><code>"system"</code></td><td>모델의 <b>기본 지시사항</b> — 역할·제약을 미리 심어 둔다</td></tr>
+        <tr><td><code>"user"</code></td><td>사용자의 질문 및 요청</td></tr>
+        <tr><td><code>"assistant"</code></td><td>모델이 생성한 <b>이전 답변</b> — 대화를 이어갈 때 넣는다</td></tr>
+      </table>
+
+      <div class="callout">
+        <span class="label">content에 넣을 수 있는 네 가지</span>
+        <ul>
+          <li><span class="k">역할</span> "너는 AI 전문가야." → 말투와 깊이가 바뀐다</li>
+          <li><span class="k">제약</span> "영어나 전문 용어를 절대 사용하지 마. 3줄 내로."</li>
+          <li><span class="k">출력 형식</span> "정의: &lt;한 문장&gt; / 활용처: &lt;bullet 3개&gt;" + 예시</li>
+          <li><span class="k">Context</span> 참고할 배경 텍스트 → 모델은 <b>주어진 내용 안에서</b> 답한다</li>
+        </ul>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">structured_prompt.py</span><span>06 세션에서 그대로 재사용되는 구조</span></div>
+        <pre><code>messages = [
+    {
+        <span class="tok-str">"role"</span>: <span class="tok-str">"system"</span>,
+        <span class="tok-str">"content"</span>: <span class="tok-str">"""
+                    Instruction:
+                    주어진 객체 탐지 정보를 바탕으로 현재 상황을 설명하시오.
+
+                    Constraint:
+                    탐지 결과에 없는 객체를 추측하지 마시오.
+
+                    Output Format:
+                    한국어 두 문장 이내.
+                   """</span>
+    },
+    {
+        <span class="tok-str">"role"</span>: <span class="tok-str">"user"</span>,
+        <span class="tok-str">"content"</span>: <span class="tok-str">f"""
+                    Context:
+                    {vision_text}
+                   """</span>
+    },
+]</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">대화 이어가기</span><p>모델은 이전 대화를 <b>스스로 기억하지 않습니다</b>. 답변을 받은 뒤 <code class="inline">messages.append({"role": response.choices[0].message.role, "content": ...})</code>로 <b>직접 대화 기록에 넣어야</b> 다음 요청에서 참고합니다.</p></div>
+    </section>
+
+    <section class="chapter" id="sec-e">
+      <div class="chapter-head">
+        <span class="big-letter">E</span>
+        <div><h2>LLM의 Memory</h2><span class="stage-tag">기억하는 게 아니라 매번 다시 넣는 것</span></div>
+      </div>
+      <div class="prose"><p>LLM은 이전 정보를 계속 기억하지 않습니다. 현재 답변은 <b>Context 안의 정보</b>만 참고하므로, 필요한 내용은 별도로 저장했다가 다시 Context에 포함시켜야 합니다.</p></div>
+
+      <table class="kv-table">
+        <tr><th>방식</th><th>유지하는 것</th><th>장점</th><th>단점</th></tr>
+        <tr><td><b>Full History</b></td><td>모든 대화</td><td>정보 손실 없음</td><td>Token 폭증 → Context Window 초과</td></tr>
+        <tr><td><b>Sliding Window</b></td><td>최근 N턴만</td><td>Token 일정하게 유지</td><td><b>오래된 정보를 잃는다</b></td></tr>
+        <tr><td><b>Summary Memory</b></td><td>과거는 요약 + 최근은 원문</td><td>둘의 절충</td><td>요약 과정에 추가 호출 필요</td></tr>
+      </table>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">memory.py</span><span>세 방식의 핵심 차이만</span></div>
+        <pre><code><span class="tok-kw">from</span> copy <span class="tok-kw">import</span> deepcopy
+<span class="tok-kw">from</span> collections <span class="tok-kw">import</span> deque
+
+<span class="tok-com"># ① Full History — 전부 그대로</span>
+full_messages = deepcopy(history)
+full_messages.append({<span class="tok-str">"role"</span>: <span class="tok-str">"user"</span>, <span class="tok-str">"content"</span>: question})
+role, content = generate_response(full_messages)
+full_messages.append({<span class="tok-str">"role"</span>: role, <span class="tok-str">"content"</span>: content})
+
+<span class="tok-com"># ② Sliding Window — deque(maxlen=)이 알아서 앞을 버린다</span>
+TURNS = <span class="tok-num">2</span>
+recent_history = deque(deepcopy(history), maxlen=TURNS * <span class="tok-num">2</span>)   <span class="tok-com"># 1턴 = user+assistant 2개</span>
+recent_history.append({<span class="tok-str">"role"</span>: <span class="tok-str">"user"</span>, <span class="tok-str">"content"</span>: question})
+role, content = generate_response(<span class="tok-fn">list</span>(recent_history))   <span class="tok-com"># deque → list 변환 필요</span>
+
+<span class="tok-com"># ③ Summary Memory — 오래된 대화를 LLM에게 요약시켜 앞에 붙인다</span>
+old_history = history[:-(TURNS * <span class="tok-num">2</span> - <span class="tok-num">1</span>)]
+
+old_history_text = <span class="tok-str">""</span>
+<span class="tok-kw">for</span> message <span class="tok-kw">in</span> old_history:
+    old_history_text += <span class="tok-str">f"{message['role']}: {message['content']}\n"</span>
+
+summary_prompt = <span class="tok-str">f"""
+다음은 사용자와 AI의 이전 대화야.
+이후 대화에서 필요할 수 있는 중요한 정보만 짧게 요약해줘.
+
+대화:
+{old_history_text}
+
+요약:
+"""</span></code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">POINT</span><p><code class="inline">deque(maxlen=N)</code>은 꽉 찬 상태에서 <code class="inline">append</code>하면 <b>앞쪽이 자동으로 밀려납니다</b> — Sliding Window에 딱 맞는 자료구조입니다. <code class="inline">maxlen=TURNS*2</code>인 이유는 한 턴이 <code class="inline">user</code> + <code class="inline">assistant</code> <b>두 개의 message</b>이기 때문입니다.<br><br>그리고 <code class="inline">deepcopy</code>를 쓰는 이유 — 세 방식을 비교하려면 원본 <code class="inline">history</code>가 변하면 안 되기 때문입니다.</p></div>
+    </section>
+
+    <section class="chapter" id="sec-f">
+      <div class="chapter-head">
+        <span class="big-letter">F</span>
+        <div><h2>Gemma 로컬 구동</h2><span class="stage-tag">인터넷 없이 Jetson에서</span></div>
+      </div>
+      <div class="prose"><p><b>Gemma</b>는 Google의 경량 LLM 계열로, <b>모델 가중치를 공개</b>해 로컬 실행이 가능합니다. 제한된 자원의 Edge Device에서도 활용할 수 있는 것이 핵심입니다.</p></div>
+
+      <div class="pipeline">
+        <div class="step">hf_hub_download<br><span style="color:var(--ink-faint);">GGUF 내려받기</span></div><span class="arrow">→</span>
+        <div class="step">llama-cpp-python<br><span style="color:var(--ink-faint);">CUDA로 직접 빌드</span></div><span class="arrow">→</span>
+        <div class="step">Jetson Linux R36.5<br><span style="color:var(--ink-faint);">CUDA 메모리 버그 수정</span></div><span class="arrow">→</span>
+        <div class="step" style="border-color:var(--accent2);">Llama(...)<br><span style="color:var(--ink-faint);">로컬 추론</span></div>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">download.py</span><span>모델 + mmproj 두 파일</span></div>
+        <pre><code><span class="tok-kw">from</span> huggingface_hub <span class="tok-kw">import</span> hf_hub_download
+
+REPO_ID     = <span class="tok-str">"bartowski/google_gemma-4-E2B-it-GGUF"</span>
+MODEL_FILE  = <span class="tok-str">"google_gemma-4-E2B-it-Q4_K_M.gguf"</span>       <span class="tok-com"># 언어 모델 본체</span>
+MMPROJ_FILE = <span class="tok-str">"mmproj-google_gemma-4-E2B-it-f16.gguf"</span>   <span class="tok-com"># 이미지 입력용 (06에서 사용)</span>
+MODEL_DIR   = <span class="tok-str">"src/models/Gemma4"</span>
+
+model_path  = hf_hub_download(repo_id=REPO_ID, filename=MODEL_FILE,  token=TOKEN, local_dir=MODEL_DIR)
+mmproj_path = hf_hub_download(repo_id=REPO_ID, filename=MMPROJ_FILE, token=TOKEN, local_dir=MODEL_DIR)</code></pre>
+      </div>
+      <div class="callout">
+        <span class="label">파일 이름 읽는 법 — <code class="inline">Q4_K_M</code></span>
+        <ul>
+          <li><b>GGUF</b> — <code class="inline">llama.cpp</code>가 쓰는 모델 형식 (04 세션의 <code class="inline">.engine</code>처럼 실행에 최적화된 포맷)</li>
+          <li><b>Q4</b> — 가중치를 <b>4비트로 양자화</b>. 04 세션의 INT8 양자화와 같은 개념이 LLM에 적용된 것</li>
+          <li><b>mmproj</b> — multimodal projector. <b>이미지를 모델이 이해할 형태로 바꿔 주는</b> 별도 파일</li>
+        </ul>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">install.sh</span><span>⚠ CUDA 지원은 직접 빌드해야 켜진다</span></div>
+        <pre><code><span class="tok-com"># llama-cpp-python — Jetson에서 GPU 가속을 쓰려면 CUDA 기반으로 빌드</span>
+export PATH=/usr/local/cuda/bin:<span class="tok-str">$PATH</span>
+
+CUDACXX=/usr/local/cuda/bin/nvcc \
+CMAKE_ARGS=<span class="tok-str">"-DGGML_CUDA=on -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc"</span> \
+pip install --no-cache-dir llama-cpp-python</code></pre>
+      </div>
+      <div class="takeaway"><span class="mark">⚠ Jetson Linux를 먼저 올려야 한다</span><p><code class="inline">cat /etc/nv_tegra_release | head -n 1</code>이 <b>R36.4.7</b>이면 먼저 <b>R36.5 이상</b>으로 올려야 합니다. NVIDIA가 공식 확인한 문제로, R36.4.7에서는 <b>메모리가 충분해도 CUDA 메모리 할당 오류</b>가 납니다.</p></div>
+      <div class="code-card">
+        <div class="bar"><span class="fn">upgrade_l4t.sh</span><span>repo 버전을 바꿔 업그레이드</span></div>
+        <pre><code>cat /etc/apt/sources.list.d/nvidia-l4t-apt-source.list      <span class="tok-com"># r36.4 확인</span>
+
+sudo sed -i <span class="tok-str">'s/r36\.4/r36.5/g'</span> /etc/apt/sources.list.d/nvidia-l4t-apt-source.list
+
+sudo apt update
+apt-cache policy nvidia-l4t-core       <span class="tok-com"># Candidate가 36.5인지 확인</span>
+
+sudo apt dist-upgrade
+sudo apt install --fix-broken -o Dpkg::Options::=<span class="tok-str">"--force-overwrite"</span>
+<span class="tok-com"># 재부팅 후 cat /etc/nv_tegra_release 로 REVISION: 5 확인</span></code></pre>
+      </div>
+
+      <div class="code-card">
+        <div class="bar"><span class="fn">local_gemma.py</span><span>로컬 챗봇 최종 코드</span></div>
+        <pre><code><span class="tok-kw">from</span> llama_cpp <span class="tok-kw">import</span> Llama
+
+MODEL_PATH = <span class="tok-str">"src/models/Gemma4/google_gemma-4-E2B-it-Q4_K_M.gguf"</span>
+CONTEXT_WINDOW = <span class="tok-num">2048</span>
+MAX_TOKENS = <span class="tok-num">300</span>
+
+llm = Llama(
+    model_path=MODEL_PATH,
+    n_gpu_layers=<span class="tok-num">-1</span>,          <span class="tok-com"># -1 = 모든 레이어를 GPU에 (가속 최대)</span>
+    n_ctx=CONTEXT_WINDOW,     <span class="tok-com"># Context Window 크기</span>
+    n_batch=<span class="tok-num">32</span>,              <span class="tok-com"># 한 번의 decode에서 처리할 최대 token 수</span>
+    n_ubatch=<span class="tok-num">32</span>,             <span class="tok-com"># GPU/CPU가 한 번에 계산하는 token 묶음 크기</span>
+    verbose=<span class="tok-fn">False</span>,
+)
+
+<span class="tok-kw">while</span> <span class="tok-fn">True</span>:
+    user_input = <span class="tok-fn">input</span>(<span class="tok-str">"무엇을 도와드릴까요?"</span>)
+
+    <span class="tok-kw">if</span> user_input.lower() <span class="tok-kw">in</span> [<span class="tok-str">"exit"</span>, <span class="tok-str">"quit"</span>, <span class="tok-str">"q"</span>, <span class="tok-str">"종료"</span>]:
+        <span class="tok-kw">break</span>
+
+    response = llm.create_chat_completion(
+        messages=[{<span class="tok-str">"role"</span>: <span class="tok-str">"user"</span>, <span class="tok-str">"content"</span>: user_input}],
+        max_tokens=MAX_TOKENS,
+    )
+
+    print(response[<span class="tok-str">"choices"</span>][<span class="tok-num">0</span>][<span class="tok-str">"message"</span>][<span class="tok-str">"content"</span>])</code></pre>
+      </div>
+
+      <div class="compare">
+        <div class="box pos"><h4>원격 (InferenceClient)</h4><ul><li><code class="inline">client.chat.completions.create(...)</code></li><li>결과: <code class="inline">response.choices[0].message.content</code></li><li><b>객체 속성</b> 접근</li></ul></div>
+        <div class="box pos"><h4>로컬 (llama.cpp)</h4><ul><li><code class="inline">llm.create_chat_completion(...)</code></li><li>결과: <code class="inline">response["choices"][0]["message"]["content"]</code></li><li><b>딕셔너리 키</b> 접근</li></ul></div>
+      </div>
+      <div class="takeaway"><span class="mark">가장 헷갈리는 지점</span><p>두 API는 <code class="inline">messages</code> 구조가 <b>완전히 같지만</b> 결과를 꺼내는 방식이 다릅니다 — 원격은 <b>점(.)</b>, 로컬은 <b>대괄호([])</b>. 코드를 원격에서 로컬로 옮길 때 여기서 <code class="inline">AttributeError</code>가 납니다.</p></div>
+
+      <div class="callout">
+        <span class="label">Section Project — Summary Memory 기반 로컬 챗봇</span>
+        <ul>
+          <li>위 <code class="inline">local_gemma.py</code>는 <b>Memory-Less</b>입니다 — 매번 <code class="inline">messages</code>를 새로 만들어 이전 대화를 잊습니다</li>
+          <li>E장의 <b>Summary Memory</b>를 붙이면 됩니다: 대화가 N턴을 넘으면 오래된 부분을 <code class="inline">llm</code>에게 요약시켜 <code class="inline">system</code> message로 앞에 붙이고, 최근 N턴만 원문으로 유지</li>
+          <li><code class="inline">n_ctx=2048</code>이 한도이므로 <b>요약 없이는 금방 Context를 넘깁니다</b> — 이 프로젝트의 존재 이유</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer class="page-end">
+      원본: <code class="inline">05-LLM_and_Gemma.ipynb</code> (<code class="inline">linux-work</code> 브랜치) · Physical AI Vision-LLM 융합 시청각 멀티모달 시스템 세션 5 정리
+    </footer>
+  </main>
+</div>
+
+<script>
+  (function(){
+    var toggle = document.getElementById('tocToggle');
+    var nav = document.getElementById('tocNav');
+    if(toggle){
+      toggle.addEventListener('click', function(){
+        nav.classList.toggle('open');
+        toggle.textContent = nav.classList.contains('open') ? '목차 접기 ▴' : '목차 펼치기 ▾';
+      });
+    }
+    var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a'));
+    var sections = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+    function onScroll(){
+      var pos = window.scrollY + 120;
+      var activeIdx = 0;
+      for(var i=0;i<sections.length;i++){
+        if(sections[i] && sections[i].offsetTop <= pos) activeIdx = i;
+      }
+      links.forEach(function(a,i){ a.classList.toggle('active', i===activeIdx); });
+    }
+    document.addEventListener('scroll', onScroll, {passive:true});
+    onScroll();
+  })();
+</script>
+</body>
+</html>
